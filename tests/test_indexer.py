@@ -16,6 +16,22 @@ def _make_vault(root: Path) -> None:
     _write(root / "notes" / "draft.md", "没有一级标题的草稿\n")
 
 
+def test_only_attachments_count_as_assets(tmp_path: Path):
+    # 真实库首跑回归：源码、缓存不得进入 assets（曾误报 39 条未引用资产）
+    _write(tmp_path / "a.md", "# a\n")
+    (tmp_path / "code.py").write_text("print(1)\n", encoding="utf-8")
+    (tmp_path / "requirements.txt").write_text("rich\n", encoding="utf-8")
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    (cache / "x.cpython-312.pyc").write_bytes(b"\x00pyc")
+    (tmp_path / "img.png").write_bytes(b"png")
+
+    index_vault(tmp_path)
+    conn = connect(default_db_path(tmp_path))
+    assets = {row[0] for row in conn.execute("SELECT path FROM assets")}
+    assert assets == {"img.png"}
+
+
 def test_first_index_adds_and_skips_hidden(tmp_path: Path):
     _make_vault(tmp_path)
     stats = index_vault(tmp_path)

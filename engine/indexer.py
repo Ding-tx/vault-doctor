@@ -21,7 +21,15 @@ from engine.graph import LinkResolver, extract_links
 
 SCHEMA_VERSION = "2"
 
-SKIP_DIRS = {"node_modules"}
+SKIP_DIRS = {"node_modules", "__pycache__", "venv", "dist", "build"}
+
+# 附件后缀白名单："资产"指图片等附件；源码/缓存等非附件文件不属于知识库概念
+# （2026-09-20 真实库首跑教训：曾把 .py/.pyc 误报为未引用资产）
+ASSET_SUFFIXES = {
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico",
+    ".pdf", ".mp3", ".wav", ".mp4", ".mov", ".webm",
+    ".docx", ".xlsx", ".pptx", ".zip", ".7z", ".rar",
+}
 
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*\r?\n?", re.DOTALL)
 _TITLE_RE = re.compile(r"^#[ \t]+(.+?)\s*$", re.MULTILINE)
@@ -77,11 +85,14 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 
 def iter_vault_files(vault: Path):
-    """产出库内所有非隐藏文件；.md 归笔记，其余归资产（assets 表）。"""
+    """产出库内可见文件：.md 为笔记、附件白名单后缀为资产，其余（源码/缓存等）不可见。"""
     for dirpath, dirnames, filenames in os.walk(vault):
         dirnames[:] = [d for d in dirnames if not d.startswith(".") and d not in SKIP_DIRS]
         for name in filenames:
-            if not name.startswith("."):
+            if name.startswith("."):
+                continue
+            suffix = Path(name).suffix.lower()
+            if suffix == ".md" or suffix in ASSET_SUFFIXES:
                 yield Path(dirpath) / name
 
 
