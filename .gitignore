@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# 虚拟环境
+.venv/
+venv/
+
+# vault-doctor 本地索引与数据库（*.db 索引不入库）
+*.db
+*.sqlite3
+
+# 本地私密配置（API key 等，只提交 config.example.toml）
+*.local.toml
+.env
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
