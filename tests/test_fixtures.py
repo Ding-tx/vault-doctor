@@ -34,12 +34,14 @@ def test_fixture_vault_ground_truth(tmp_path: Path):
                 broken.add((note, target_raw))
     assert broken == EXPECTED_BROKEN
 
-    # near-miss 三层断言：距离 1、距离 2、日期打错的双候选
+    # near-miss 三层断言：距离 1、距离 2、日期打错的三候选
+    # （17→18、17→19 各差一次替换 d=1；17→20 差两次替换 d=2）
     assert near_miss(conn, "算法导论2")[0] == ("计算机/算法导论.md", 1)
     assert ("数学/概率论.md", 2) in near_miss(conn, "概率论笔记")
     assert near_miss(conn, "daily/2026-09-17") == [
         ("daily/2026-09-18.md", 1),
-        ("daily/2026-09-19.md", 2),
+        ("daily/2026-09-19.md", 1),
+        ("daily/2026-09-20.md", 2),
     ]
 
     # 孤儿：无入链且无出链
