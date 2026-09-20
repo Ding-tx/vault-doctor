@@ -13,6 +13,7 @@ venv/
 # vault-doctor 本地索引与数据库（*.db 索引不入库）
 *.db
 *.sqlite3
+.vaultdoctor/
 
 # 本地私密配置（API key 等，只提交 config.example.toml）
 *.local.toml
