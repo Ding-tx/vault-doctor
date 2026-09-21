@@ -76,6 +76,7 @@ def _scan(vault: Path) -> dict:
 
 
 def _why(vault: Path, rule_id: str, file: str, line: int | None) -> str:
+    index_vault(vault)  # API 自洽：不假设调用方先扫过描
     conn = connect(default_db_path(vault))
     try:
         violations = run_rules(RuleContext(conn), [rule_id] if rule_id else None)
@@ -99,6 +100,7 @@ def _why(vault: Path, rule_id: str, file: str, line: int | None) -> str:
 
 
 def _fix_draft(vault: Path, limit: int = 5) -> dict:
+    index_vault(vault)  # API 自洽：不假设调用方先扫过描
     conn = connect(default_db_path(vault))
     try:
         violations = run_rules(RuleContext(conn), [UI_RULE])
