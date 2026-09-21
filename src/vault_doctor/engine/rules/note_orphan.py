@@ -26,6 +26,7 @@ RULE = Rule(
     id="note/orphan",
     severity="warn",
     autofixable=False,
+    label="孤儿笔记",
     description="检测既没有被链接也没有链接别人的笔记",
     detect=_detect,
 )

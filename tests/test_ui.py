@@ -53,6 +53,32 @@ def test_http_scan_and_index(tmp_path: Path):
         assert str(tmp_path) in html  # {{VAULT}} 占位被注入默认库路径
 
 
+def test_http_rules_catalog(tmp_path: Path):
+    """规则目录：中文短名 + 严重度 + 一句话说明（UI 图例与筛选器的数据源）。"""
+    with _served(tmp_path) as port:
+        status, body = _get(port, "/api/rules")
+        assert status == 200
+        rules = json.loads(body)
+        assert rules["link/broken"]["label"] == "断链"
+        assert rules["link/broken"]["severity"] == "error"
+        assert rules["link/broken"]["description"]
+        assert rules["link/near-miss"]["label"] == "疑似改名"
+
+
+def test_http_snapshots_detail(tmp_path: Path):
+    """快照列表带创建时间与文件清单——不再是盲盒 session id。"""
+    from vault_doctor.policy.snapshot import create_snapshot
+
+    with _served(tmp_path) as port:
+        snap = create_snapshot(tmp_path, ["计算机/学习计划.md"])
+        status, body = _get(port, "/api/snapshots")
+        assert status == 200
+        data = json.loads(body)
+        assert data["snapshots"][0]["session_id"] == snap.session_id  # 新→旧
+        assert data["snapshots"][0]["created_at"]
+        assert "计算机/学习计划.md" in data["snapshots"][0]["files"]
+
+
 def test_fix_draft_apply_flow_with_fake_client(tmp_path: Path, monkeypatch):
     build_vault(tmp_path)
     monkeypatch.setattr(ui, "make_client", lambda cfg: DispatchClient())
@@ -62,6 +88,14 @@ def test_fix_draft_apply_flow_with_fake_client(tmp_path: Path, monkeypatch):
     assert draft["draft_id"]
     assert len(draft["files"]) == 3
     assert any("[[算法导论]]" in f["diff"] for f in draft["files"])
+
+    # 起草载荷自带"为什么改"与"预览即验证"（用户不需要懂规则 id 也能决策）
+    study = next(f for f in draft["files"] if f["file"] == "计算机/学习计划.md")
+    assert study["violations"][0]["target"] == "算法导论2"
+    assert study["violations"][0]["candidates"][0]["path"] == "计算机/算法导论.md"
+    assert study["after_check"]["ok"] is True
+    assert "算法导论2" in study["after_check"]["fixed"]
+    assert study["after_check"]["regression"] == []
 
     report = ui._fix_apply(draft["draft_id"], [f["file"] for f in draft["files"]])
     assert len(report["applied_files"]) == 3

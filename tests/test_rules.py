@@ -3,7 +3,7 @@ from pathlib import Path
 
 from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 from vault_doctor.engine.rules import BUILTIN_RULES, run_rules
-from vault_doctor.engine.rules.base import RuleContext
+from vault_doctor.engine.rules.base import Rule, RuleContext
 from tests.fixtures import (
     EXPECTED_BROKEN,
     EXPECTED_ORPHANS,
@@ -24,6 +24,11 @@ def test_registry_meta():
     assert all(not rule.autofixable for rule in BUILTIN_RULES.values())
     assert BUILTIN_RULES["link/broken"].severity == "error"
     assert all(BUILTIN_RULES[rid].severity == "warn" for rid in ("link/near-miss", "note/orphan", "asset/unreferenced"))
+    # UI 中文化：内置规则都有中文短名；插件规则缺省回退 id
+    assert BUILTIN_RULES["link/broken"].label == "断链"
+    assert all(rule.label for rule in BUILTIN_RULES.values())
+    assert BUILTIN_RULES["link/broken"].display_label == "断链"
+    assert Rule(id="x/y", severity="warn", detect=lambda ctx: []).display_label == "x/y"
 
 
 def test_rules_match_ground_truth(tmp_path: Path):

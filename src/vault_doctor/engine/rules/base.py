@@ -44,7 +44,12 @@ class Rule:
     detect: Callable[[RuleContext], list[Violation]]
     autofixable: bool = False
     description: str = ""
+    label: str = ""  # 中文短名（UI 展示），如"断链"；缺省回退 id
 
     def __post_init__(self) -> None:
         if self.severity not in SEVERITIES:
             raise ValueError(f"规则 {self.id} 的 severity 非法：{self.severity}")
+
+    @property
+    def display_label(self) -> str:
+        return self.label or self.id

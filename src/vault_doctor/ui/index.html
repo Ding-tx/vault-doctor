@@ -37,8 +37,17 @@
   .filecard { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:10px 0; }
   .filecard .head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .filecard code { background:var(--bg); padding:1px 6px; border-radius:4px; }
+  .sect { margin-top:10px; margin-bottom:4px; font-size:12px; color:var(--muted); font-weight:600; }
   .answer { white-space:pre-wrap; background:var(--bg); border-radius:6px; padding:10px 12px; margin-top:8px; }
-  .snapitem { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); }
+  .snapitem { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .snapitem .meta { min-width:0; }
+  .legend-row { display:flex; gap:10px; padding:3px 0; font-size:13px; }
+  .legend-row b { min-width:170px; font-weight:600; white-space:nowrap; }
+  .legend-row span { color:var(--muted); }
+  .badge { display:inline-block; margin-top:6px; padding:1px 8px; border-radius:10px; font-size:12px; }
+  .badge.ok { background:#dafbe1; color:var(--green); }
+  .badge.err { background:#ffebe9; color:var(--red); }
+  .badge.plain { background:var(--bg); color:var(--muted); }
 </style>
 </head>
 <body>
@@ -52,24 +61,32 @@
 <main>
   <div class="toolbar">
     <select id="fSev" onchange="render()">
-      <option value="">全部严重度</option><option>error</option><option>warn</option><option>info</option>
+      <option value="">全部严重度</option>
+      <option value="error">错误 error</option>
+      <option value="warn">警告 warn</option>
+      <option value="info">提示 info</option>
     </select>
     <select id="fRule" onchange="render()"><option value="">全部规则</option></select>
     <input id="fText" type="text" placeholder="按文件/说明过滤…" oninput="render()" style="min-width:220px">
     <span class="status" id="stat"></span>
   </div>
+  <details class="card" style="padding:10px 16px">
+    <summary style="cursor:pointer">❓ 严重度和规则是什么意思？</summary>
+    <div id="legendBody" style="margin-top:8px"></div>
+  </details>
   <div class="card"><table id="tbl"></table></div>
   <div class="card" id="detail" style="display:none"></div>
 
   <div class="card">
-    <h3>agent 修复（link/near-miss · 起草 → 勾选批准 → 快照 → 应用 → 复扫验证）</h3>
+    <h3>agent 修复 · 疑似改名链接（link/near-miss）</h3>
+    <div class="status" style="margin-bottom:8px">流程：起草修复方案 → 逐文件勾选批准 → 自动快照 → 应用 → 复扫验证。需要 API key（config.local.toml 或环境变量）。</div>
     <button id="btnDraft" onclick="doDraft()">起草修复方案</button>
-    <span class="status">需要 API key（config.local.toml 或环境变量）</span>
     <div id="draftArea"></div>
   </div>
 
   <div class="card">
     <h3>快照与回滚</h3>
+    <div class="status" style="margin-bottom:8px">每次应用修改前都会自动保存一份快照（原文件备份）。回滚 = 把文件恢复到该快照时刻的内容。</div>
     <button onclick="loadSnaps()">查看快照</button>
     <div id="snapArea"></div>
   </div>
@@ -78,9 +95,19 @@
 "use strict";
 let SCAN = null;        // {notes, assets, elapsed, violations:[...]}
 let DRAFT = null;       // {draft_id, files:[...], usage}
+let RULES = {};         // {rule_id: {label, severity, description}}
+
+// 严重度语义：产品化的关键不是"红黄蓝"，而是用户能答出"这为什么要紧"
+const SEV = {
+  error: {zh: "错误", hint: "影响正确性：链接指向库内不存在的文件，读者点开会落空，建议优先处理"},
+  warn:  {zh: "警告", hint: "健康建议：内容仍可读，但反映笔记库的组织问题（疑似改名未同步、孤儿笔记、无人引用的附件）"},
+  info:  {zh: "提示", hint: "参考信息，不影响阅读"},
+};
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "");
+const sevZh = s => (SEV[s] || {zh: s}).zh;
+const ruleLabel = rid => (RULES[rid] ? RULES[rid].label + "（" + rid + "）" : rid);
 
 function setStat(msg, cls) { $("stat").textContent = msg; $("stat").className = "status " + (cls||""); }
 
@@ -94,6 +121,35 @@ async function api(path, body) {
 
 function vaultPath() { return $("vault").value.trim(); }
 
+function renderLegend() {
+  const body = $("legendBody"); if (!body) return;
+  body.innerHTML = "";
+  const h1 = document.createElement("div");
+  h1.textContent = "三个严重度："; h1.style.fontWeight = "600"; body.appendChild(h1);
+  for (const [sev, meta] of Object.entries(SEV)) {
+    const row = document.createElement("div"); row.className = "legend-row";
+    const b = document.createElement("b"); b.className = "sev-" + sev;
+    b.textContent = meta.zh + " " + sev;
+    const sp = document.createElement("span"); sp.textContent = meta.hint;
+    row.append(b, sp); body.appendChild(row);
+  }
+  const h2 = document.createElement("div");
+  h2.textContent = "本库生效的规则："; h2.style.fontWeight = "600"; h2.style.marginTop = "8px";
+  body.appendChild(h2);
+  for (const [rid, r] of Object.entries(RULES)) {
+    const row = document.createElement("div"); row.className = "legend-row";
+    const b = document.createElement("b"); b.className = "sev-" + r.severity;
+    b.textContent = r.label + "（" + rid + "）";
+    const sp = document.createElement("span"); sp.textContent = r.description;
+    row.append(b, sp); body.appendChild(row);
+  }
+}
+
+async function loadRules() {
+  try { RULES = await api("/api/rules"); } catch (e) { /* 图例缺目录不致命 */ }
+  renderLegend();
+}
+
 async function doScan() {
   setStat("扫描中…");
   try {
@@ -101,7 +157,7 @@ async function doScan() {
     const rules = [...new Set(SCAN.violations.map(v => v.rule_id))];
     $("fRule").innerHTML = "";
     $("fRule").append(new Option("全部规则", ""));
-    rules.forEach(r => $("fRule").append(new Option(r, r)));
+    rules.forEach(r => $("fRule").append(new Option(ruleLabel(r), r)));
     render();
   } catch (e) { setStat("扫描失败：" + e.message, "err"); SCAN = null; render(); }
 }
@@ -122,7 +178,8 @@ function render() {
   const rows = filtered();
   for (const v of rows.slice(0, 200)) {
     const tr = tbody.insertRow(); tr.className = "row";
-    const cells = [v.severity, v.rule_id, v.file + (v.line ? ":" + v.line : ""), v.message];
+    const cells = [sevZh(v.severity) + " " + v.severity, ruleLabel(v.rule_id),
+                   v.file + (v.line ? ":" + v.line : ""), v.message];
     cells.forEach((c, i) => {
       const td = tr.insertCell();
       if (i === 0) td.className = "sev-" + v.severity;
@@ -132,8 +189,9 @@ function render() {
   }
   if (SCAN) {
     const errs = SCAN.violations.filter(v => v.severity === "error").length;
+    const warns = SCAN.violations.filter(v => v.severity === "warn").length;
     setStat(`${SCAN.notes} 篇笔记 · ${SCAN.assets} 资产 · ${SCAN.elapsed}s —— ${SCAN.violations.length} 条` +
-      `（${errs} error）` + (rows.length > 200 ? `，表格显示前 200 条` : ""),
+      `（错误 ${errs} / 警告 ${warns}）` + (rows.length > 200 ? `，表格显示前 200 条` : ""),
       errs ? "err" : "ok");
   } else { setStat(""); }
 }
@@ -144,8 +202,10 @@ function showDetail(v) {
   const h = document.createElement("h3"); h.textContent = "违规详情"; d.appendChild(h);
   const kv = document.createElement("div"); kv.className = "kv";
   const add = (k, val) => { const b = document.createElement("b"); b.textContent = k; const s = document.createElement("span"); s.textContent = val; kv.append(b, s); };
+  add("严重度", sevZh(v.severity) + " " + v.severity + " — " + (SEV[v.severity] || {hint: ""}).hint);
   add("位置", v.file + (v.line ? ":" + v.line : ""));
-  add("规则", v.rule_id + "（" + v.severity + "）");
+  const ruleMeta = RULES[v.rule_id];
+  add("规则", ruleLabel(v.rule_id) + (ruleMeta ? "：" + ruleMeta.description : ""));
   add("说明", v.message);
   d.appendChild(kv);
   const cands = (v.detail && v.detail.candidates) || [];
@@ -177,18 +237,43 @@ async function doDraft() {
   $("btnDraft").disabled = false;
 }
 
+function sectionTitle(parent, text) {
+  const s = document.createElement("div"); s.className = "sect"; s.textContent = text;
+  parent.appendChild(s);
+}
+
 function renderDraft() {
   const area = $("draftArea"); area.innerHTML = "";
   if (!DRAFT || !DRAFT.files.length) { area.textContent = "没有可起草的违规（link/near-miss）"; return; }
+
+  const total = DRAFT.files.reduce((n, f) => n + (f.violations ? f.violations.length : 0), 0);
+  const summary = document.createElement("div"); summary.className = "status"; summary.style.margin = "6px 0";
+  summary.textContent = `共 ${DRAFT.files.length} 个文件、约 ${total} 条"疑似改名"违规待修复`;
+  area.appendChild(summary);
+
   for (const f of DRAFT.files) {
     const card = document.createElement("div"); card.className = "filecard";
     const head = document.createElement("div"); head.className = "head";
     const label = document.createElement("label");
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.dataset.file = f.file;
     const code = document.createElement("code"); code.textContent = f.file;
-    label.append(cb, " 批准 · ", code, `（${f.count} 处修改）`);
-    const why = document.createElement("span"); why.className = "status"; why.textContent = f.rationale;
-    head.append(label, why); card.appendChild(head);
+    label.append(cb, " 批准修改 · ", code, `（${f.count} 处修改）`);
+    head.append(label); card.appendChild(head);
+
+    sectionTitle(card, "① 为什么需要修改");
+    for (const vio of (f.violations || [])) {
+      const p = document.createElement("div");
+      let t = `第 ${vio.line ?? "?"} 行的 [[${vio.target}]] 现在解析不到任何文件`;
+      const cands = (vio.candidates || []).map(c => `${c.path}（距离 ${c.distance}）`).join("、");
+      if (cands) t += `；最接近的现有文件：${cands}`;
+      p.textContent = t; card.appendChild(p);
+    }
+
+    sectionTitle(card, "② AI 的修改理由");
+    const why = document.createElement("div"); why.textContent = f.rationale || "（模型未给出理由）";
+    card.appendChild(why);
+
+    sectionTitle(card, "③ 具体改动（diff）");
     const pre = document.createElement("pre"); pre.className = "diff";
     for (const line of f.diff.split("\n")) {
       const span = document.createElement("span");
@@ -196,7 +281,27 @@ function renderDraft() {
       span.textContent = line;
       pre.appendChild(span);
     }
-    card.appendChild(pre); area.appendChild(card);
+    card.appendChild(pre);
+
+    // 预览即验证：起草阶段已对"修改后文本"全量重解析过链接
+    const ac = f.after_check || {};
+    if (ac.regression && ac.regression.length) {
+      const b = document.createElement("span"); b.className = "badge err";
+      b.textContent = `⚠ 该方案会引入新的断链：${ac.regression.join("、")} —— 不建议批准`;
+      card.appendChild(b);
+    } else if (ac.fixed && ac.fixed.length) {
+      const b = document.createElement("span"); b.className = "badge ok";
+      b.textContent = `✓ 已验证：修改后 ${ac.fixed.map(t => "[[" + t + "]]").join("、")} 都能正确解析到库内文件`;
+      card.appendChild(b);
+    }
+    const others = (ac.still_broken || []).filter(t => !(ac.fixed || []).includes(t));
+    if (others.length) {
+      const b = document.createElement("span"); b.className = "badge plain";
+      b.style.marginLeft = "8px";
+      b.textContent = `另有 ${others.length} 处与本次修改无关的既有断链（如 ${others[0]}），不在本次处理范围`;
+      card.appendChild(b);
+    }
+    area.appendChild(card);
   }
   const bar = document.createElement("div"); bar.style.marginTop = "8px";
   const apply = document.createElement("button"); apply.className = "primary"; apply.textContent = "应用已批准的修改";
@@ -217,6 +322,7 @@ async function doApply() {
     const div = $("draftArea"); div.innerHTML = "";
     const mk = (txt, cls) => { const p = document.createElement("div"); p.className = cls; p.textContent = txt; div.appendChild(p); };
     mk(`✅ 已应用 ${r.applied_files.length} 个文件 · 快照 ${r.snapshot_id}`, "ok");
+    if (r.applied_files.length) mk("修改的文件：" + r.applied_files.join("、"), "status");
     mk(`清除 ${r.cleared_files.length} 个文件的违规` + (r.remaining_files.length ? `；残留：${r.remaining_files.join("、")}` : "，无残留"), r.remaining_files.length ? "err" : "ok");
     for (const f of r.failed) mk(`❌ ${f.file}: ${f.error}`, "err");
     const rb = document.createElement("button"); rb.className = "danger"; rb.textContent = "回滚这次修改";
@@ -232,17 +338,32 @@ async function loadSnaps() {
     const r = await api("/api/snapshots?vault=" + encodeURIComponent(vaultPath()));
     area.innerHTML = "";
     if (!r.snapshots.length) { area.textContent = "暂无快照"; return; }
-    for (const sid of [...r.snapshots].reverse()) {
+    for (const snap of r.snapshots) {  // 接口已按新→旧排序
+      const sid = snap.session_id;
       const row = document.createElement("div"); row.className = "snapitem";
-      const code = document.createElement("code"); code.textContent = sid;
+      const meta = document.createElement("div"); meta.className = "meta";
+      const t1 = document.createElement("div");
+      const t = document.createElement("span"); t.textContent = (snap.created_at || sid).replace("T", " ");
+      const c = document.createElement("code"); c.textContent = sid; c.style.marginLeft = "8px";
+      t1.append(t, c); meta.appendChild(t1);
+      const t2 = document.createElement("div"); t2.className = "status";
+      const files = snap.files || [];
+      const preview = files.slice(0, 3).join("、") + (files.length > 3 ? ` 等 ${files.length} 个文件` : "");
+      t2.textContent = files.length ? `修改过的文件（${files.length}）：${preview}` : "（无文件记录）";
+      meta.appendChild(t2);
       const btn = document.createElement("button"); btn.className = "danger"; btn.textContent = "回滚";
-      btn.onclick = async () => { if (!confirm(`回滚 ${sid}？`)) return; await api("/api/rollback", {vault: vaultPath(), session_id: sid}); loadSnaps(); doScan(); };
-      row.append(code, btn); area.appendChild(row);
+      btn.onclick = async () => {
+        if (!confirm(`回滚 ${sid}？将把 ${files.length} 个文件恢复到该快照时刻的内容。`)) return;
+        await api("/api/rollback", {vault: vaultPath(), session_id: sid});
+        loadSnaps(); doScan();
+      };
+      row.append(meta, btn); area.appendChild(row);
     }
   } catch (e) { area.textContent = "❌ " + e.message; }
 }
 
-doScan();
+// 先取规则目录再首扫：表格/筛选器/图例一次到位，不闪英文 id
+loadRules().finally(() => doScan());
 </script>
 </body>
 </html>

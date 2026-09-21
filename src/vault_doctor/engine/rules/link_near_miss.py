@@ -37,6 +37,7 @@ RULE = Rule(
     id="link/near-miss",
     severity="warn",
     autofixable=False,
+    label="疑似改名",
     description="断链目标与现有文件名编辑距离 ≤ 2 时，提示改名/笔误候选",
     detect=_detect,
 )

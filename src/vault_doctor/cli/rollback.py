@@ -7,7 +7,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from vault_doctor.policy.snapshot import SnapshotError, list_snapshots, rollback
+from vault_doctor.policy.snapshot import SnapshotError, list_snapshots_detail, rollback
 
 
 def cmd_snapshots(args: argparse.Namespace) -> int:
@@ -16,13 +16,19 @@ def cmd_snapshots(args: argparse.Namespace) -> int:
     if not vault.is_dir():
         print(f"错误：路径不存在或不是目录：{vault}", file=sys.stderr)
         return 2
-    sessions = list_snapshots(vault)
-    if not sessions:
+    detail = list_snapshots_detail(vault)
+    if not detail:
         console.print("暂无快照")
         return 0
-    console.print(f"[bold]vault-doctor[/bold] · {len(sessions)} 个快照（新→旧）")
-    for sid in reversed(sessions):
-        console.print(f"  {sid}    回滚：vault-doctor rollback {sid} \"{vault}\"")
+    console.print(f"[bold]vault-doctor[/bold] · {len(detail)} 个快照（新→旧）")
+    for snap in reversed(detail):
+        files = snap["files"]
+        preview = "、".join(files[:3]) + (f" 等 {len(files)} 个文件" if len(files) > 3 else "")
+        console.print(
+            f"  [cyan]{snap['session_id']}[/cyan]  {snap['created_at']}\n"
+            f"      改动文件：{preview or '（无）'}\n"
+            f"      回滚：vault-doctor rollback {snap['session_id']} \"{vault}\""
+        )
     return 0
 
 

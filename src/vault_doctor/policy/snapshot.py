@@ -64,6 +64,25 @@ def list_snapshots(vault: Path) -> list[str]:
     )
 
 
+def list_snapshots_detail(vault: Path) -> list[dict]:
+    """快照详情（旧→新）：session_id、创建时间、修改文件清单——回答"这份快照改了什么"。"""
+    detail: list[dict] = []
+    for sid in list_snapshots(vault):
+        manifest_path = snapshots_root(vault) / sid / "manifest.json"
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        detail.append(
+            {
+                "session_id": sid,
+                "created_at": data.get("created_at", ""),
+                "files": data.get("files", []),
+            }
+        )
+    return detail
+
+
 def rollback(vault: Path, session_id: str) -> list[str]:
     """把一次会话快照复制回原位，返回恢复的文件列表。"""
     if not _SESSION_ID_RE.fullmatch(session_id):

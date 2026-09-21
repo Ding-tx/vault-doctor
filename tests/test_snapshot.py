@@ -7,6 +7,7 @@ from vault_doctor.policy.snapshot import (
     SnapshotError,
     create_snapshot,
     list_snapshots,
+    list_snapshots_detail,
     rollback,
 )
 
@@ -22,6 +23,23 @@ def test_create_and_list(tmp_path: Path):
     assert (snap.dir / "sub" / "b.md").is_file()
     assert (snap.dir / "manifest.json").is_file()
     assert list_snapshots(tmp_path) == [snap.session_id]
+
+
+def test_list_snapshots_detail(tmp_path: Path):
+    """详情回答用户三问：什么时候建的、改了哪些文件、同一文件是否有多份快照。"""
+    (tmp_path / "a.md").write_text("v1", encoding="utf-8")
+    (tmp_path / "b.md").write_text("b", encoding="utf-8")
+    s1 = create_snapshot(tmp_path, ["a.md"])
+    (tmp_path / "a.md").write_text("v2", encoding="utf-8")
+    s2 = create_snapshot(tmp_path, ["a.md", "b.md"])
+
+    detail = list_snapshots_detail(tmp_path)  # 旧→新
+    assert [d["session_id"] for d in detail] == [s1.session_id, s2.session_id]
+    assert detail[0]["files"] == ["a.md"]
+    assert detail[1]["files"] == ["a.md", "b.md"]
+    assert all(d["created_at"] for d in detail)
+    # 同一文件 a.md 出现在两份快照中——回滚目标可据此区分
+    assert sum("a.md" in d["files"] for d in detail) == 2
 
 
 def test_rollback_restores_originals(tmp_path: Path):

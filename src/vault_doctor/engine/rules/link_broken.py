@@ -28,6 +28,7 @@ RULE = Rule(
     id="link/broken",
     severity="error",
     autofixable=False,
+    label="断链",
     description="检测 [[wikilink]] 与 [md](相对路径) 中无法解析到库内文件的链接",
     detect=_detect,
 )

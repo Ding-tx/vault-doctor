@@ -26,6 +26,7 @@ RULE = Rule(
     id="asset/unreferenced",
     severity="warn",
     autofixable=False,
+    label="未引用资产",
     description="检测从未被引用的图片等资产文件",
     detect=_detect,
 )

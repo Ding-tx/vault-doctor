@@ -23,14 +23,15 @@ from vault_doctor.agent.drafter import draft_file_patches, merge_usage
 from vault_doctor.cli.why import SYSTEM_PROMPT as WHY_PROMPT
 from vault_doctor.cli.why import build_user_prompt
 from vault_doctor.config import ConfigError, load_llm_config
+from vault_doctor.engine.graph import LinkResolver, extract_links
 from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 from vault_doctor.engine.patches import apply_patches, apply_to_text
-from vault_doctor.engine.rules import run_rules
+from vault_doctor.engine.rules import REGISTRY, run_rules
 from vault_doctor.engine.rules.base import RuleContext
 from vault_doctor.kernel.transcript import Transcript, new_session_id
 from vault_doctor.ledger.budget import BudgetExceeded, TokenLedger
 from vault_doctor.llm.client import LLMClient, LLMError
-from vault_doctor.policy.snapshot import SnapshotError, create_snapshot, list_snapshots, rollback
+from vault_doctor.policy.snapshot import SnapshotError, create_snapshot, list_snapshots_detail, rollback
 
 UI_RULE = "link/near-miss"
 
@@ -76,6 +77,40 @@ def _scan(vault: Path) -> dict:
     }
 
 
+def _rules_payload() -> dict:
+    """规则目录（含中文短名）：UI 的规则筛选器与"这是什么"图例从这里取。"""
+    return {
+        rid: {
+            "label": rule.display_label,
+            "severity": rule.severity,
+            "description": rule.description,
+        }
+        for rid, rule in REGISTRY.items()
+    }
+
+
+def _after_check(resolver: LinkResolver, relpath: str, before: str, after: str) -> dict:
+    """预览即验证：起草阶段就把修改后文本全量重解析，把"复扫断言"前置到预览。
+
+    still_broken 可能含与本次无关的既有断链；regression 为空即"修改没有引入新断链"。
+    """
+
+    def _broken(text: str) -> set[str]:
+        return {
+            link.target_raw
+            for link in extract_links(text)
+            if resolver.resolve(relpath, link) is None
+        }
+
+    b_before, b_after = _broken(before), _broken(after)
+    return {
+        "ok": not (b_after - b_before),
+        "fixed": sorted(b_before - b_after),
+        "still_broken": sorted(b_after),
+        "regression": sorted(b_after - b_before),
+    }
+
+
 def _why(vault: Path, rule_id: str, file: str, line: int | None) -> str:
     index_vault(vault)  # API 自洽：不假设调用方先扫过描
     conn = connect(default_db_path(vault))
@@ -105,8 +140,13 @@ def _fix_draft(vault: Path, limit: int = 5) -> dict:
     conn = connect(default_db_path(vault))
     try:
         violations = run_rules(RuleContext(conn), [UI_RULE])
+        known = [row[0] for row in conn.execute("SELECT path FROM files")]
+        known += [row[0] for row in conn.execute("SELECT path FROM assets")]
+        known += [row[0] for row in conn.execute("SELECT path FROM others")]
+        known += [row[0] for row in conn.execute("SELECT path FROM dirs")]
     finally:
         conn.close()
+    resolver = LinkResolver(known)
     if not violations:
         return {"draft_id": None, "files": [], "usage": {}}
 
@@ -140,6 +180,18 @@ def _fix_draft(vault: Path, limit: int = 5) -> dict:
                 "file": relpath,
                 "count": len(patches),
                 "rationale": patches[0].rationale,
+                "violations": [
+                    {
+                        "line": v.line,
+                        "target": v.detail.get("target_raw", ""),
+                        "candidates": [
+                            {"path": p, "distance": d}
+                            for p, d in (v.detail.get("candidates") or [])[:3]
+                        ],
+                    }
+                    for v in group
+                ],
+                "after_check": _after_check(resolver, relpath, before, after),
                 "diff": diff,
             })
             all_patches.extend(patches)
@@ -265,9 +317,12 @@ class Handler(BaseHTTPRequestHandler):
             qs = parse_qs(parsed.query)
             self._guard(lambda: _scan(self._vault(qs.get("vault", [None])[0])))
             return
+        if parsed.path == "/api/rules":
+            self._guard(_rules_payload)
+            return
         if parsed.path == "/api/snapshots":
             qs = parse_qs(parsed.query)
-            self._guard(lambda: {"snapshots": list_snapshots(self._vault(qs.get("vault", [None])[0]))})
+            self._guard(lambda: {"snapshots": list(reversed(list_snapshots_detail(self._vault(qs.get("vault", [None])[0]))))})
             return
         self._send_json({"error": "not found"}, 404)
 
