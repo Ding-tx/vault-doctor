@@ -99,11 +99,3 @@ def build_vault(root: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"fixture-asset")
     return root
-
-
-if __name__ == "__main__":
-    import sys
-
-    target = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("tests/fixtures/vault")
-    build_vault(target)
-    print(f"fixtures 已物化到 {target.resolve()}：{len(NOTES)} 篇笔记 + {len(ASSETS)} 个资产")
