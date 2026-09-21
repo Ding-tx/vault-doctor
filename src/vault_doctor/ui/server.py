@@ -201,7 +201,8 @@ def _fix_apply(draft_id: str, approved_files: list[str]) -> dict:
     }
     transcript.append({"type": "verify", "cleared": len(cleared_files),
                        "remaining": remaining_files})
-    transcript.append({"type": "session_end", "ok": not remaining and not report["failed"]})
+    transcript.append({"type": "session_end",
+                       "ok": not remaining_files and not report["failed"]})
     with _DRAFTS_LOCK:
         _DRAFTS.pop(draft_id, None)
     return report
