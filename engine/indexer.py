@@ -1,15 +1,20 @@
 """vault-doctor 索引器：把 markdown 库的元数据、全文与链接图索引进 SQLite。
 
 设计依据 DESIGN.md 6.2 / 10：
-- 单文件 SQLite：files 笔记元数据 + assets 非笔记资产 + FTS5 全文
-  （trigram 分词，支持中文子串检索，规避 FTS5 默认分词器对中文失效）+ links 链接图
+- 单文件 SQLite：files 笔记 + assets 附件 + others 普通文件 + dirs 目录
+  + FTS5 全文（trigram 分词，支持中文子串检索）+ links 链接图
+- 两级可见性（2026-09-21 真实库校准）：
+  * 解析器看得见一切——notes/assets/others/dirs 全部进 LinkResolver 已知集合，
+    否则指向 LICENSE、bin/ 等普通文件的链接会被误报断链
+  * 规则各管各的——note/orphan 只看笔记，asset/unreferenced 只看附件
+- .vaultdoctorignore：每行一个 fnmatch 模式（# 注释），匹配路径前缀即整棵跳过，
+  用于把供应商代码等"非笔记子树"划出扫描范围
 - 增量更新：以 (mtime, size) 指纹判断变更；链接重解析只发生在变化的文件上
-- 两遍式：先索引全部文件得到完整已知路径集，再统一解析链接，
-  避免文件遍历顺序影响解析结果
 - 全链路 UTF-8：坏字节以 U+FFFD 替换而不是让索引崩溃
 """
 from __future__ import annotations
 
+import fnmatch
 import os
 import re
 import sqlite3
@@ -19,11 +24,11 @@ from pathlib import Path
 
 from engine.graph import LinkResolver, extract_links
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 SKIP_DIRS = {"node_modules", "__pycache__", "venv", "dist", "build"}
 
-# 附件后缀白名单："资产"指图片等附件；源码/缓存等非附件文件不属于知识库概念
+# 附件后缀白名单："资产"指图片等附件；其余非 md 文件进 others 表（可解析、不进规则）
 # （2026-09-20 真实库首跑教训：曾把 .py/.pyc 误报为未引用资产）
 ASSET_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico",
@@ -49,6 +54,12 @@ CREATE TABLE IF NOT EXISTS assets(
     mtime REAL NOT NULL,
     size INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS others(
+    path TEXT PRIMARY KEY,
+    mtime REAL NOT NULL,
+    size INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dirs(path TEXT PRIMARY KEY);
 CREATE VIRTUAL TABLE IF NOT EXISTS content USING fts5(path UNINDEXED, body, tokenize='trigram');
 CREATE TABLE IF NOT EXISTS links(
     source TEXT NOT NULL,
@@ -84,16 +95,26 @@ def connect(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
-def iter_vault_files(vault: Path):
-    """产出库内可见文件：.md 为笔记、附件白名单后缀为资产，其余（源码/缓存等）不可见。"""
-    for dirpath, dirnames, filenames in os.walk(vault):
-        dirnames[:] = [d for d in dirnames if not d.startswith(".") and d not in SKIP_DIRS]
-        for name in filenames:
-            if name.startswith("."):
-                continue
-            suffix = Path(name).suffix.lower()
-            if suffix == ".md" or suffix in ASSET_SUFFIXES:
-                yield Path(dirpath) / name
+def load_ignore_patterns(vault: Path) -> list[str]:
+    """读取 <vault>/.vaultdoctorignore：每行一个 fnmatch 模式，# 为注释。"""
+    ignore_file = vault / ".vaultdoctorignore"
+    if not ignore_file.is_file():
+        return []
+    lines = ignore_file.read_text(encoding="utf-8", errors="replace").splitlines()
+    return [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
+
+
+def _is_ignored(relpath: str, patterns: list[str]) -> bool:
+    """relpath 的任一级前缀命中任一模式即忽略（模式作用于整棵子树）。"""
+    if not patterns:
+        return False
+    parts = relpath.split("/")
+    prefixes = ["/".join(parts[: i + 1]) for i in range(len(parts))]
+    return any(
+        fnmatch.fnmatch(prefix, pattern.rstrip("/"))
+        for prefix in prefixes
+        for pattern in patterns
+    )
 
 
 def extract_frontmatter(text: str) -> str | None:
@@ -111,6 +132,7 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
     db_path = (db_path or default_db_path(vault)).resolve()
     stats = IndexStats()
     start = time.perf_counter()
+    patterns = load_ignore_patterns(vault)
 
     conn = connect(db_path)
     try:
@@ -122,56 +144,86 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
             row[0]: (row[1], row[2])
             for row in conn.execute("SELECT path, mtime, size FROM assets")
         }
+        existing_others = {
+            row[0]: (row[1], row[2])
+            for row in conn.execute("SELECT path, mtime, size FROM others")
+        }
         seen_notes: set[str] = set()
         seen_assets: set[str] = set()
+        seen_others: set[str] = set()
+        all_dirs: list[str] = []
         changed: dict[str, str] = {}
 
-        for filepath in iter_vault_files(vault):
-            relpath = filepath.relative_to(vault).as_posix()
-            st = filepath.stat()
-            fingerprint = (st.st_mtime, st.st_size)
-            is_note = filepath.suffix.lower() == ".md"
+        for dirpath, dirnames, filenames in os.walk(vault):
+            rel_dir = Path(dirpath).relative_to(vault).as_posix()
 
-            if is_note:
-                seen_notes.add(relpath)
-                existing = existing_notes
-            else:
-                seen_assets.add(relpath)
-                existing = existing_assets
+            kept: list[str] = []
+            for d in dirnames:
+                if d.startswith(".") or d in SKIP_DIRS:
+                    continue
+                rel = f"{rel_dir}/{d}" if rel_dir != "." else d
+                if _is_ignored(rel, patterns):
+                    continue
+                kept.append(d)
+                all_dirs.append(rel)
+            dirnames[:] = kept
 
-            if relpath in existing and existing[relpath] == fingerprint:
-                if is_note:
-                    stats.unchanged += 1
-                continue
+            for name in filenames:
+                if name.startswith("."):
+                    continue
+                relpath = f"{rel_dir}/{name}" if rel_dir != "." else name
+                if _is_ignored(relpath, patterns):
+                    continue
 
-            if is_note:
-                text = filepath.read_text(encoding="utf-8", errors="replace")
-                conn.execute("DELETE FROM files WHERE path = ?", (relpath,))
-                conn.execute(
-                    """INSERT INTO files(path, mtime, size, title, frontmatter, indexed_at)
-                       VALUES(?,?,?,?,?,?)""",
-                    (
-                        relpath,
-                        st.st_mtime,
-                        st.st_size,
-                        extract_title(text, relpath),
-                        extract_frontmatter(text),
-                        time.time(),
-                    ),
-                )
-                conn.execute("DELETE FROM content WHERE path = ?", (relpath,))
-                conn.execute("INSERT INTO content(path, body) VALUES(?,?)", (relpath, text))
-                changed[relpath] = text
-                if relpath not in existing_notes:
-                    stats.added += 1
+                filepath = Path(dirpath) / name
+                st = filepath.stat()
+                fingerprint = (st.st_mtime, st.st_size)
+                suffix = filepath.suffix.lower()
+
+                if suffix == ".md":
+                    seen_notes.add(relpath)
+                    if relpath in existing_notes and existing_notes[relpath] == fingerprint:
+                        stats.unchanged += 1
+                        continue
+                    text = filepath.read_text(encoding="utf-8", errors="replace")
+                    conn.execute("DELETE FROM files WHERE path = ?", (relpath,))
+                    conn.execute(
+                        """INSERT INTO files(path, mtime, size, title, frontmatter, indexed_at)
+                           VALUES(?,?,?,?,?,?)""",
+                        (
+                            relpath,
+                            st.st_mtime,
+                            st.st_size,
+                            extract_title(text, relpath),
+                            extract_frontmatter(text),
+                            time.time(),
+                        ),
+                    )
+                    conn.execute("DELETE FROM content WHERE path = ?", (relpath,))
+                    conn.execute("INSERT INTO content(path, body) VALUES(?,?)", (relpath, text))
+                    changed[relpath] = text
+                    if relpath not in existing_notes:
+                        stats.added += 1
+                    else:
+                        stats.updated += 1
+                elif suffix in ASSET_SUFFIXES:
+                    seen_assets.add(relpath)
+                    if relpath in existing_assets and existing_assets[relpath] == fingerprint:
+                        continue
+                    conn.execute(
+                        "INSERT INTO assets(path, mtime, size) VALUES(?,?,?) "
+                        "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, size=excluded.size",
+                        (relpath, st.st_mtime, st.st_size),
+                    )
                 else:
-                    stats.updated += 1
-            else:
-                conn.execute(
-                    "INSERT INTO assets(path, mtime, size) VALUES(?,?,?) "
-                    "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, size=excluded.size",
-                    (relpath, st.st_mtime, st.st_size),
-                )
+                    seen_others.add(relpath)
+                    if relpath in existing_others and existing_others[relpath] == fingerprint:
+                        continue
+                    conn.execute(
+                        "INSERT INTO others(path, mtime, size) VALUES(?,?,?) "
+                        "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, size=excluded.size",
+                        (relpath, st.st_mtime, st.st_size),
+                    )
 
         for relpath in set(existing_notes) - seen_notes:
             conn.execute("DELETE FROM files WHERE path = ?", (relpath,))
@@ -180,10 +232,18 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
             stats.removed += 1
         for relpath in set(existing_assets) - seen_assets:
             conn.execute("DELETE FROM assets WHERE path = ?", (relpath,))
+        for relpath in set(existing_others) - seen_others:
+            conn.execute("DELETE FROM others WHERE path = ?", (relpath,))
+
+        # 目录表整表刷新（无指纹语义，量小无所谓）
+        conn.execute("DELETE FROM dirs")
+        conn.executemany("INSERT OR REPLACE INTO dirs(path) VALUES(?)", [(d,) for d in all_dirs])
 
         # 第二遍：已知路径集完整后统一解析并写入变化文件的链接
         known = [row[0] for row in conn.execute("SELECT path FROM files")]
         known += [row[0] for row in conn.execute("SELECT path FROM assets")]
+        known += [row[0] for row in conn.execute("SELECT path FROM others")]
+        known += [row[0] for row in conn.execute("SELECT path FROM dirs")]
         resolver = LinkResolver(known)
         for source, text in changed.items():
             conn.execute("DELETE FROM links WHERE source = ?", (source,))

@@ -89,7 +89,13 @@ class LinkResolver:
             self._by_stem.setdefault(self._norm(PurePosixPath(p).stem), []).append(p)
 
     def resolve(self, source: str, link: RawLink) -> str | None:
-        target = link.target_raw
+        # 真实库教训（2026-09-21）：Windows 笔记常见 .\images\1.png 反斜杠路径与
+        # bin/ 目录尾斜杠写法；先归一，target_raw 原样保留用于报告展示
+        raw = link.target_raw.replace("\\", "/")
+        rooted = raw.startswith("/")
+        target = raw.rstrip("/")
+        if not target:
+            return None
         if link.kind.startswith("wikilink"):
             for cand in (target, target + ".md"):
                 hit = self._exact.get(self._norm(cand))
@@ -105,7 +111,7 @@ class LinkResolver:
             return self._stem_hit(PurePosixPath(target).stem)
 
         # md 链接：以 / 开头视为库根路径，否则相对源文件目录解析
-        if target.startswith("/"):
+        if rooted:
             key = "/" + self._norm(target.lstrip("/"))
             hits = [p for p in self._exact.values() if self._norm(p).endswith(key)]
             return hits[0] if hits else None
@@ -162,13 +168,18 @@ def _osa_distance(a: str, b: str, cap: int) -> int | None:
 
 
 def near_miss(conn: sqlite3.Connection, target_raw: str, max_distance: int = 2) -> list[tuple[str, int]]:
-    """断链目标的改名候选：与现有文件名编辑距离 ≤ max_distance 的文件，按距离升序。"""
-    stem = PurePosixPath(target_raw).stem
+    """断链目标的改名候选：与现有文件名编辑距离 ≤ max_distance 的文件，按距离升序。
+
+    比例过滤：距离达到较长名字一半以上视为无关噪声（真实库教训：
+    nqa.jpg → a.jpg，d=2 但占名长 2/3，纯属巧合而非改名）。
+    """
+    stem = PurePosixPath(target_raw.replace("\\", "/")).stem
     results: list[tuple[str, int]] = []
     for (path,) in conn.execute(
-        "SELECT path FROM files UNION SELECT path FROM assets"
+        "SELECT path FROM files UNION SELECT path FROM assets UNION SELECT path FROM others"
     ):
-        d = _osa_distance(stem, PurePosixPath(path).stem, max_distance)
-        if d is not None:
+        candidate_stem = PurePosixPath(path).stem
+        d = _osa_distance(stem, candidate_stem, max_distance)
+        if d is not None and d < 0.5 * max(len(stem), len(candidate_stem)):
             results.append((path, d))
     return sorted(results, key=lambda t: (t[1], t[0]))

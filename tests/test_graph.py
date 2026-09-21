@@ -90,3 +90,29 @@ def test_links_refresh_on_update(tmp_path: Path):
     assert targets == ["新目标"]
     assert who_links_to(conn, "旧目标.md") == []
     assert who_links_to(conn, "新目标.md") == [("a.md", 2, "wikilink")]
+
+
+def test_md_link_to_plain_file_dir_and_backslash(tmp_path: Path):
+    # 真实库校准回归（2026-09-21）：指向 LICENSE/目录的链接应可解析；
+    # Typora 在 Windows 产出的 .\images\1.png 反斜杠路径应可解析
+    _write(tmp_path / "doc.md", "# d\n[lic](LICENSE)\n[dir](bin/)\n[win](.\\images\\1.png)\n")
+    (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+    (tmp_path / "bin").mkdir()
+    _write(tmp_path / "images" / "1.png", "png")
+    index_vault(tmp_path)
+
+    conn = connect(default_db_path(tmp_path))
+    resolved = {row[0]: row[1] for row in links_of(conn, "doc.md")}
+    assert resolved["LICENSE"] == "LICENSE"
+    assert resolved["bin/"] == "bin"
+    assert resolved[".\\images\\1.png"] == "images/1.png"
+
+
+def test_near_miss_ratio_filter(tmp_path: Path):
+    # nqa.jpg → a.jpg：距离 2 但占名长 2/3，属巧合噪声，应被比例过滤掉
+    _write(tmp_path / "主笔记.md", "# m\n[[nqa.jpg]]\n")
+    (tmp_path / "a.jpg").write_bytes(b"x")
+    index_vault(tmp_path)
+
+    conn = connect(default_db_path(tmp_path))
+    assert near_miss(conn, "nqa.jpg") == []

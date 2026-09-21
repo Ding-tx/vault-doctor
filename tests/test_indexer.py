@@ -88,3 +88,18 @@ def test_update_and_removal(tmp_path: Path):
         "SELECT path FROM content WHERE path = 'notes/draft.md'"
     ).fetchall()
     assert stale == []
+
+
+def test_vaultdoctorignore(tmp_path: Path):
+    # 真实库校准（2026-09-21）：供应商代码等非笔记子树可用 .vaultdoctorignore 划出
+    _write(tmp_path / "keep.md", "# k\n")
+    _write(tmp_path / "vendor" / "deep" / "x.md", "# x\n")
+    (tmp_path / "vendor" / "logo.png").write_bytes(b"png")
+    (tmp_path / ".vaultdoctorignore").write_text("# 供应商代码\nvendor\n", encoding="utf-8")
+
+    stats = index_vault(tmp_path)
+    conn = connect(default_db_path(tmp_path))
+    assert stats.added == 1
+    assert {row[0] for row in conn.execute("SELECT path FROM files")} == {"keep.md"}
+    assert {row[0] for row in conn.execute("SELECT path FROM assets")} == set()
+    assert all("vendor" not in row[0] for row in conn.execute("SELECT path FROM dirs"))
