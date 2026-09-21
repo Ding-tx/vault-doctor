@@ -31,7 +31,7 @@ def test_sarif_structure(tmp_path: Path):
         and r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "读书/书单.md"
     )
     location = broken["locations"][0]["physicalLocation"]
-    assert location["uriBaseId"] == "%SRCROOT%"
+    assert location["artifactLocation"]["uriBaseId"] == "%SRCROOT%"
     assert location["region"]["startLine"] == 3
 
     # 确定性排序的文档化：首条结果按 (source, line) 的 UTF-8 字节序，ASCII 先于中文
