@@ -41,7 +41,7 @@ def test_run_fix_end_to_end(tmp_path: Path):
     assert report.before == 3
     assert report.cleared == 3 and report.remaining == 0
     assert report.snapshot_id is not None
-    assert sorted(report.applied_files) == ["daily/2026-09-18.md", "计算机/学习计划.md", "数学/复习.md"]
+    assert set(report.applied_files) == {"daily/2026-09-18.md", "计算机/学习计划.md", "数学/复习.md"}
     assert (tmp_path / "计算机" / "学习计划.md").read_text(encoding="utf-8") == (
         "# 学习计划\n\n- [[算法导论]]\n- [[算法导论]]\n"
     )
