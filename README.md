@@ -41,6 +41,9 @@ vault-doctor scan . --format sarif -o out.sarif   # SARIF 2.1.0（GitHub Code Sc
 vault-doctor scan . --rules note/orphan    # 只跑指定规则
 vault-doctor rules                         # 列出内置 + 插件规则
 vault-doctor why . --index 1               # 用 LLM 把一条违规翻译成人话
+vault-doctor fix .                         # agent 修复：起草 → diff 预览 → 你确认 → 快照 → 应用 → 复扫验证
+vault-doctor snapshots .                   # 查看修复快照
+vault-doctor rollback <sid> .              # 一键回滚一次修复会话
 ```
 
 **`why` 需要 API key**（唯一需要密钥的命令）：复制 `config.example.toml` 为 `config.local.toml` 并填入 `api_key`（默认智谱 GLM，任何 OpenAI 兼容端点均可；该文件已被 gitignore，密钥不入库）。也支持环境变量 `VAULT_DOCTOR_API_KEY`。
@@ -84,7 +87,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 在 PR 上直接标注断链（SARIF → GitHub Code Scanning）。也可只用 CLI 接入自有流水线：`vault-doctor scan . --format sarif -o out.sarif`，退出码 `1` 即存在 error 级违规。
 
-**Safety / 安全承诺**：vault-doctor **永远只读**——不编辑、不移动、不删除你的任何文件；修复建议只以报告形式输出。（agent 辅助修复在路线图 M2，同样默认 diff 预览 + 人工闸门。）
+**Safety / 安全承诺**：`scan` / `rules` 永远只读。`fix` 的每一次写入都走同一条路径：**diff 预览 → 你的逐文件确认（y/n/a/q，可随时 q 全取消）→ 自动快照 → 应用 → 复扫验证**；`rollback` 一键还原，全程事件流留痕（`.vaultdoctor/transcripts/`，含每次 LLM 调用的 token 与你在闸门按的每个键），并支持会话级 token 预算熔断。
 
 ## How it works / 工作原理
 
@@ -94,8 +97,8 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 ## Roadmap / 路线图
 
-- **M1**：规则 SDK（插件化注册）、SARIF 输出 + GitHub Action（PR 上直接标注断链）、`why` 命令（把一条违规翻译成人话——首次 LLM 调用）
-- **M2**：agent 修复循环——`fix` 命令、diff 预览、人工闸门、git 快照回滚
+- **M1 ✅**：规则 SDK（插件化注册）、SARIF 输出 + GitHub Action、`why` 命令
+- **M2 ✅**：agent 修复循环——`fix`（起草 → 闸门 → 快照 → 复扫验证）、`rollback`、JSONL 会话转录、token 预算熔断
 - **M3**：本地 embedding 语义查重、模型路由、**MCP server**（把只读图谱工具暴露给 Claude Code / Cursor 等任意 agent）
 - **M4**：会话重放（replay）、规则插件注册表
 
@@ -119,7 +122,7 @@ pip install pytest
 pytest -v
 ```
 
-23 个测试覆盖：索引与增量、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码与输出格式。
+23→90 个测试覆盖：索引与增量、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断。
 
 ## License
 
