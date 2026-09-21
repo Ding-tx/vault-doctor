@@ -46,6 +46,9 @@ def cmd_scan(args: argparse.Namespace) -> int:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
 
+    if args.severity:
+        violations = [v for v in violations if v.severity == args.severity]
+
     if args.format in ("json", "sarif"):
         if args.format == "json":
             payload = json.dumps(
@@ -66,7 +69,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         else:
             print(payload)
     else:
-        render_table(vault, notes, assets, stats.elapsed, violations)
+        top = max(1, args.top)
+        render_table(vault, notes, assets, stats.elapsed, violations, top=top)
 
     return 1 if any(v.severity == "error" for v in violations) else 0
 
@@ -78,6 +82,7 @@ def render_table(
     elapsed: float,
     violations: list[Violation],
     console: Console | None = None,
+    top: int = 50,
 ) -> None:
     console = console or Console()
     console.print(f"[bold]vault-doctor[/bold] · 扫描 [underline]{escape(str(vault))}[/underline]")
@@ -90,7 +95,7 @@ def render_table(
     table = Table()
     for col in ("严重度", "规则", "位置", "说明"):
         table.add_column(col)
-    for v in violations:
+    for v in violations[:top]:
         loc = f"{v.file}:{v.line}" if v.line else v.file
         # 断链消息含 [[...]]，必须转义，否则会被 rich 当作样式标记
         table.add_row(
@@ -100,6 +105,10 @@ def render_table(
             escape(v.message),
         )
     console.print(table)
+    if len(violations) > top:
+        console.print(
+            f"[dim]表格仅显示前 {top} 条（共 {len(violations)} 条）——用 --top N 调整[/dim]"
+        )
 
     errors = sum(1 for v in violations if v.severity == "error")
     warns = sum(1 for v in violations if v.severity == "warn")

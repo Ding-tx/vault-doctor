@@ -1,5 +1,9 @@
 # vault-doctor 🩺
 
+[![CI](https://github.com/vault-doctor/vault-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/vault-doctor/vault-doctor/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **The doctor for your markdown knowledge base** — graph-aware lint that finds broken links, orphan notes and unreferenced attachments, and tells you when a "broken" link is really just a renamed file.
 
 **markdown 知识库的体检医生** —— 图谱语义层的 lint：找出断链、孤儿笔记、未被引用的附件，并告诉你哪些"断链"其实只是文件改了名。
@@ -122,7 +126,7 @@ pip install pytest
 pytest -v
 ```
 
-23→90 个测试覆盖：索引与增量、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断。
+94 项测试覆盖：索引与增量、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码/过滤/截断与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断。
 
 ## License
 

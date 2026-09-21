@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from vault_doctor.agent.drafter import (
+    DRAFT_SYSTEM_PROMPT,
     DraftError,
     draft_file_patches,
     locate_edit,
@@ -30,6 +31,12 @@ def test_locate_unique():
     text = "AAA [[目标]] BBB"
     start, end = locate_edit(text, "[[目标]]")
     assert text[start:end] == "[[目标]]"
+
+
+def test_system_prompt_guides_bare_filename():
+    # 真实点火观察：模型倾向全路径带 .md——prompt 必须明确指导裸文件名写法
+    assert "裸文件名" in DRAFT_SYSTEM_PROMPT
+    assert ".md" in DRAFT_SYSTEM_PROMPT
 
 
 def test_locate_multiple_with_line_hint():

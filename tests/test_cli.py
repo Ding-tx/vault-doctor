@@ -57,6 +57,40 @@ def test_rules_command(capsys):
     assert "内置" in out
 
 
+def test_version_flag(capsys):
+    import pytest
+
+    import vault_doctor
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert vault_doctor.__version__ in capsys.readouterr().out
+
+
+def test_scan_severity_filter(tmp_path: Path, capsys):
+    build_vault(tmp_path)
+    code = main(["scan", str(tmp_path), "--severity", "warn"])
+    out = capsys.readouterr().out
+    assert code == 0  # error 被过滤 → 退出码 0
+    assert "孤儿笔记" in out
+    assert "断链" not in out
+
+    code = main(["scan", str(tmp_path), "--severity", "error"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "断链" in out
+    assert "孤儿笔记" not in out
+
+
+def test_scan_top_truncation(tmp_path: Path, capsys):
+    build_vault(tmp_path)
+    code = main(["scan", str(tmp_path), "--top", "5"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "仅显示前 5 条" in out   # 截断提示
+    assert "共 17 条" in out        # 汇总统计全量
+
+
 def test_snapshots_and_rollback_cli(tmp_path, capsys):
     from vault_doctor.policy.snapshot import create_snapshot
 

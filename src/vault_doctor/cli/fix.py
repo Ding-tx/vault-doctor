@@ -22,7 +22,7 @@ def cmd_fix(args: argparse.Namespace) -> int:
         print(f"错误：路径不存在或不是目录：{vault}", file=sys.stderr)
         return 2
     if args.rule not in SUPPORTED_RULES:
-        print(f"错误：M2-C 仅支持 {sorted(SUPPORTED_RULES)}", file=sys.stderr)
+        print(f"错误：当前仅支持规则 {sorted(SUPPORTED_RULES)}", file=sys.stderr)
         return 2
 
     try:

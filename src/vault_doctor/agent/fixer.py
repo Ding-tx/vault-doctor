@@ -54,7 +54,7 @@ def run_fix(
 ) -> FixReport:
     console = console or Console()
     if rule not in SUPPORTED_RULES:
-        raise ValueError(f"M2-C 仅支持 {sorted(SUPPORTED_RULES)}，收到 {rule!r}")
+        raise ValueError(f"当前仅支持规则 {sorted(SUPPORTED_RULES)}，收到 {rule!r}")
     if transcript is not None:
         transcript.append(
             {"type": "session_start", "command": "fix", "rule": rule,

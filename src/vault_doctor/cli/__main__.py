@@ -1,8 +1,18 @@
-"""CLI 入口：`vault-doctor <command>`（安装后）或 `python -m vault_doctor <command>`。M0 仅提供 scan。"""
+"""CLI 入口：`vault-doctor <command>`（安装后）或 `python -m vault_doctor <command>`。"""
 from __future__ import annotations
 
 import argparse
 import sys
+
+from vault_doctor import __version__
+
+_EPILOG = """示例：
+  vault-doctor scan .                        # 扫描当前目录（只读）
+  vault-doctor scan . --severity error --top 20
+  vault-doctor scan . --format sarif -o out.sarif
+  vault-doctor why . --index 1               # LLM 解释一条违规（需配置 API key）
+  vault-doctor fix .                         # agent 修复（diff 闸门 + 快照 + 复扫验证）
+  vault-doctor snapshots . / rollback <sid> ."""
 
 
 def _force_utf8_stdout() -> None:
@@ -20,7 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vault-doctor",
         description="markdown 知识库的体检医生：图谱语义层 lint + 修复",
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--version", action="version", version=f"vault-doctor {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     scan_p = sub.add_parser("scan", help="扫描知识库，输出违规报告")
@@ -30,6 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scan_p.add_argument("-o", "--output", help="写入文件而非 stdout（json/sarif 常用）")
     scan_p.add_argument("--rules", help="只运行指定规则，逗号分隔，如 link/broken,note/orphan")
+    scan_p.add_argument("--severity", choices=("error", "warn", "info"), help="只显示指定严重度")
+    scan_p.add_argument("--top", type=int, default=50, help="表格最多显示条数（默认 50；汇总行统计全量）")
 
     sub.add_parser("rules", help="列出已注册的规则（内置 + 插件）")
 
