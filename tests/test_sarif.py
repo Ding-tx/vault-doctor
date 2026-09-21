@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+import vault_doctor
 from vault_doctor.cli import sarif
 from vault_doctor.cli.__main__ import main
 from vault_doctor.engine.indexer import connect, default_db_path, index_vault
@@ -21,7 +22,7 @@ def test_sarif_structure(tmp_path: Path):
     assert doc["version"] == "2.1.0"
     run = doc["runs"][0]
     assert run["tool"]["driver"]["name"] == "vault-doctor"
-    assert run["tool"]["driver"]["version"] == "0.1.0"
+    assert run["tool"]["driver"]["version"] == vault_doctor.__version__
     assert len(run["results"]) == 17
     assert {r["level"] for r in run["results"]} == {"error", "warning"}
 
