@@ -25,11 +25,18 @@ def test_sarif_structure(tmp_path: Path):
     assert len(run["results"]) == 17
     assert {r["level"] for r in run["results"]} == {"error", "warning"}
 
-    broken = next(r for r in run["results"] if r["ruleId"] == "link/broken")
+    broken = next(
+        r for r in run["results"]
+        if r["ruleId"] == "link/broken"
+        and r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "读书/书单.md"
+    )
     location = broken["locations"][0]["physicalLocation"]
-    assert location["artifactLocation"]["uri"].startswith("读书/书单.md")
-    assert location["artifactLocation"]["uriBaseId"] == "%SRCROOT%"
+    assert location["uriBaseId"] == "%SRCROOT%"
     assert location["region"]["startLine"] == 3
+
+    # 确定性排序的文档化：首条结果按 (source, line) 的 UTF-8 字节序，ASCII 先于中文
+    first = run["results"][0]["locations"][0]["physicalLocation"]
+    assert first["artifactLocation"]["uri"] == "daily/2026-09-18.md"
 
     # 用到的规则在 driver.rules 里有描述（GitHub 摄取要求）
     described = {r["id"] for r in run["tool"]["driver"]["rules"]}
