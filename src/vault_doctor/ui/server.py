@@ -47,7 +47,8 @@ class ApiError(Exception):
 
 
 def make_client(cfg):
-    """测试注入点：替换此函数即可让 UI 全链路走假客户端。"""
+    """测试注入点：替换此函数即可让 UI 全链路走假客户端。
+    返回对象需提供 LLMClient 同款接口：chat(system, user) -> (str, dict) 与 close()。"""
     return LLMClient(cfg)
 
 

@@ -27,6 +27,9 @@ class DispatchClient:
                 return resp, {"prompt_tokens": 100, "completion_tokens": 10}
         raise AssertionError(f"无法分发：{user[:80]}")
 
+    def close(self):  # 与 LLMClient 同接口：作为注入替身必须完整
+        pass
+
 
 def _muted_console() -> Console:
     return Console(file=io.StringIO(), force_terminal=False)
