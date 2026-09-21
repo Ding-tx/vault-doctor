@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vault-doctor · 知识库体检医生</title>
+<style>
+  :root { --fg:#1f2328; --muted:#6a737d; --line:#e4e7eb; --bg:#f6f8fa; --card:#fff;
+          --red:#cf222e; --green:#1a7f37; --yellow:#9a6700; --blue:#0969da; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.6 system-ui,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--fg); background:var(--bg); }
+  header { padding:14px 22px; background:var(--card); border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  header .muted { color:var(--muted); font-size:12px; }
+  main { max-width:1080px; margin:0 auto; padding:18px 22px 60px; }
+  button { font:inherit; padding:5px 14px; border:1px solid var(--line); border-radius:6px; background:var(--card); cursor:pointer; }
+  button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+  button.danger { color:var(--red); border-color:var(--red); background:#fff; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input[type=text] { font:inherit; padding:5px 9px; border:1px solid var(--line); border-radius:6px; min-width:320px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:14px 0; }
+  .card h3 { margin:0 0 8px; font-size:14px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr.row { cursor:pointer; } tr.row:hover { background:var(--bg); }
+  .sev-error { color:var(--red); font-weight:600; } .sev-warn { color:var(--yellow); font-weight:600; }
+  .sev-info { color:var(--blue); font-weight:600; }
+  pre.diff { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:8px 10px; overflow:auto; font:12px/1.5 Consolas,monospace; }
+  pre.diff .add { color:var(--green); display:block; } pre.diff .del { color:var(--red); display:block; }
+  pre.diff .hunk { color:var(--blue); display:block; }
+  .kv { display:grid; grid-template-columns:90px 1fr; gap:4px 10px; font-size:13px; }
+  .kv b { color:var(--muted); font-weight:500; }
+  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  select { font:inherit; padding:4px 8px; border:1px solid var(--line); border-radius:6px; }
+  .status { color:var(--muted); font-size:12px; }
+  .ok { color:var(--green); font-weight:600; } .err { color:var(--red); }
+  .filecard { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:10px 0; }
+  .filecard .head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .filecard code { background:var(--bg); padding:1px 6px; border-radius:4px; }
+  .answer { white-space:pre-wrap; background:var(--bg); border-radius:6px; padding:10px 12px; margin-top:8px; }
+  .snapitem { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🩺 vault-doctor</h1>
+  <span class="muted">markdown 知识库体检 · 扫描只读 · 修复过闸 · 落盘可回滚</span>
+  <span style="flex:1"></span>
+  <input id="vault" type="text" value="{{VAULT}}">
+  <button class="primary" onclick="doScan()">扫描</button>
+</header>
+<main>
+  <div class="toolbar">
+    <select id="fSev" onchange="render()">
+      <option value="">全部严重度</option><option>error</option><option>warn</option><option>info</option>
+    </select>
+    <select id="fRule" onchange="render()"><option value="">全部规则</option></select>
+    <input id="fText" type="text" placeholder="按文件/说明过滤…" oninput="render()" style="min-width:220px">
+    <span class="status" id="stat"></span>
+  </div>
+  <div class="card"><table id="tbl"></table></div>
+  <div class="card" id="detail" style="display:none"></div>
+
+  <div class="card">
+    <h3>agent 修复（link/near-miss · 起草 → 勾选批准 → 快照 → 应用 → 复扫验证）</h3>
+    <button id="btnDraft" onclick="doDraft()">起草修复方案</button>
+    <span class="status">需要 API key（config.local.toml 或环境变量）</span>
+    <div id="draftArea"></div>
+  </div>
+
+  <div class="card">
+    <h3>快照与回滚</h3>
+    <button onclick="loadSnaps()">查看快照</button>
+    <div id="snapArea"></div>
+  </div>
+</main>
+<script>
+"use strict";
+let SCAN = null;        // {notes, assets, elapsed, violations:[...]}
+let DRAFT = null;       // {draft_id, files:[...], usage}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "");
+
+function setStat(msg, cls) { $("stat").textContent = msg; $("stat").className = "status " + (cls||""); }
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)};
+  const resp = await fetch(path, opt);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+function vaultPath() { return $("vault").value.trim(); }
+
+async function doScan() {
+  setStat("扫描中…");
+  try {
+    SCAN = await api("/api/scan?vault=" + encodeURIComponent(vaultPath()));
+    const rules = [...new Set(SCAN.violations.map(v => v.rule_id))];
+    $("fRule").innerHTML = "";
+    $("fRule").append(new Option("全部规则", ""));
+    rules.forEach(r => $("fRule").append(new Option(r, r)));
+    render();
+  } catch (e) { setStat("扫描失败：" + e.message, "err"); SCAN = null; render(); }
+}
+
+function filtered() {
+  if (!SCAN) return [];
+  const sev = $("fSev").value, rule = $("fRule").value, kw = $("fText").value.trim();
+  return SCAN.violations.filter(v =>
+    (!sev || v.severity === sev) && (!rule || v.rule_id === rule) &&
+    (!kw || (v.file + v.message).includes(kw)));
+}
+
+function render() {
+  const tbl = $("tbl"); tbl.innerHTML = "";
+  const thead = tbl.createTHead(), hr = thead.insertRow();
+  ["严重度","规则","位置","说明"].forEach(t => { const th = document.createElement("th"); th.textContent = t; hr.appendChild(th); });
+  const tbody = tbl.createTBody();
+  const rows = filtered();
+  for (const v of rows.slice(0, 200)) {
+    const tr = tbody.insertRow(); tr.className = "row";
+    const cells = [v.severity, v.rule_id, v.file + (v.line ? ":" + v.line : ""), v.message];
+    cells.forEach((c, i) => {
+      const td = tr.insertCell();
+      if (i === 0) td.className = "sev-" + v.severity;
+      td.textContent = c;
+    });
+    tr.onclick = () => showDetail(v);
+  }
+  if (SCAN) {
+    const errs = SCAN.violations.filter(v => v.severity === "error").length;
+    setStat(`${SCAN.notes} 篇笔记 · ${SCAN.assets} 资产 · ${SCAN.elapsed}s —— ${SCAN.violations.length} 条` +
+      `（${errs} error）` + (rows.length > 200 ? `，表格显示前 200 条` : ""),
+      errs ? "err" : "ok");
+  } else { setStat(""); }
+}
+
+function showDetail(v) {
+  const d = $("detail"); d.style.display = "";
+  d.innerHTML = "";
+  const h = document.createElement("h3"); h.textContent = "违规详情"; d.appendChild(h);
+  const kv = document.createElement("div"); kv.className = "kv";
+  const add = (k, val) => { const b = document.createElement("b"); b.textContent = k; const s = document.createElement("span"); s.textContent = val; kv.append(b, s); };
+  add("位置", v.file + (v.line ? ":" + v.line : ""));
+  add("规则", v.rule_id + "（" + v.severity + "）");
+  add("说明", v.message);
+  d.appendChild(kv);
+  const cands = (v.detail && v.detail.candidates) || [];
+  if (cands.length) {
+    const p = document.createElement("div"); p.style.marginTop = "8px";
+    p.textContent = "改名候选：" + cands.slice(0,3).map(c => `${c[0]}（距离 ${c[1]}）`).join("，");
+    d.appendChild(p);
+  }
+  const bar = document.createElement("div"); bar.style.marginTop = "10px";
+  const btn = document.createElement("button"); btn.className = "primary"; btn.textContent = "为什么？";
+  const out = document.createElement("div"); out.className = "answer"; out.style.display = "none";
+  btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = "思考中…"; out.style.display = ""; out.textContent = "";
+    try {
+      const r = await api("/api/why", {vault: vaultPath(), rule_id: v.rule_id, file: v.file, line: v.line});
+      out.textContent = r.answer;
+    } catch (e) { out.textContent = "❌ " + e.message; }
+    btn.disabled = false; btn.textContent = "为什么？";
+  };
+  bar.append(btn, out); d.appendChild(bar);
+}
+
+async function doDraft() {
+  $("btnDraft").disabled = true; $("draftArea").textContent = "起草中（调用 LLM）…";
+  try {
+    DRAFT = await api("/api/fix/draft", {vault: vaultPath()});
+    renderDraft();
+  } catch (e) { $("draftArea").textContent = "❌ " + e.message; }
+  $("btnDraft").disabled = false;
+}
+
+function renderDraft() {
+  const area = $("draftArea"); area.innerHTML = "";
+  if (!DRAFT || !DRAFT.files.length) { area.textContent = "没有可起草的违规（link/near-miss）"; return; }
+  for (const f of DRAFT.files) {
+    const card = document.createElement("div"); card.className = "filecard";
+    const head = document.createElement("div"); head.className = "head";
+    const label = document.createElement("label");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.dataset.file = f.file;
+    const code = document.createElement("code"); code.textContent = f.file;
+    label.append(cb, " 批准 · ", code, `（${f.count} 处修改）`);
+    const why = document.createElement("span"); why.className = "status"; why.textContent = f.rationale;
+    head.append(label, why); card.appendChild(head);
+    const pre = document.createElement("pre"); pre.className = "diff";
+    for (const line of f.diff.split("\n")) {
+      const span = document.createElement("span");
+      span.className = line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : line.startsWith("@") ? "hunk" : "";
+      span.textContent = line;
+      pre.appendChild(span);
+    }
+    card.appendChild(pre); area.appendChild(card);
+  }
+  const bar = document.createElement("div"); bar.style.marginTop = "8px";
+  const apply = document.createElement("button"); apply.className = "primary"; apply.textContent = "应用已批准的修改";
+  apply.onclick = doApply;
+  const note = document.createElement("span"); note.className = "status"; note.style.marginLeft = "10px";
+  note.textContent = DRAFT.usage.prompt_tokens !== undefined
+    ? `tokens: ${DRAFT.usage.prompt_tokens||0} 输入 + ${DRAFT.usage.completion_tokens||0} 输出` : "";
+  bar.append(apply, note); area.appendChild(bar);
+}
+
+async function doApply() {
+  const approved = [...document.querySelectorAll("#draftArea input[type=checkbox]:checked")].map(cb => cb.dataset.file);
+  if (!approved.length) { alert("请至少勾选一个文件"); return; }
+  if (!confirm(`将修改 ${approved.length} 个文件（自动快照，可回滚）。继续？`)) return;
+  $("draftArea").textContent = "应用中…";
+  try {
+    const r = await api("/api/fix/apply", {draft_id: DRAFT.draft_id, approved});
+    const div = $("draftArea"); div.innerHTML = "";
+    const mk = (txt, cls) => { const p = document.createElement("div"); p.className = cls; p.textContent = txt; div.appendChild(p); };
+    mk(`✅ 已应用 ${r.applied_files.length} 个文件 · 快照 ${r.snapshot_id}`, "ok");
+    mk(`清除 ${r.cleared_files.length} 个文件的违规` + (r.remaining_files.length ? `；残留：${r.remaining_files.join("、")}` : "，无残留"), r.remaining_files.length ? "err" : "ok");
+    for (const f of r.failed) mk(`❌ ${f.file}: ${f.error}`, "err");
+    const rb = document.createElement("button"); rb.className = "danger"; rb.textContent = "回滚这次修改";
+    rb.onclick = async () => { await api("/api/rollback", {vault: vaultPath(), session_id: r.snapshot_id}); doScan(); loadSnaps(); div.textContent = "已回滚。"; };
+    div.appendChild(rb);
+    doScan(); loadSnaps();
+  } catch (e) { $("draftArea").textContent = "❌ " + e.message; }
+}
+
+async function loadSnaps() {
+  const area = $("snapArea"); area.textContent = "加载中…";
+  try {
+    const r = await api("/api/snapshots?vault=" + encodeURIComponent(vaultPath()));
+    area.innerHTML = "";
+    if (!r.snapshots.length) { area.textContent = "暂无快照"; return; }
+    for (const sid of [...r.snapshots].reverse()) {
+      const row = document.createElement("div"); row.className = "snapitem";
+      const code = document.createElement("code"); code.textContent = sid;
+      const btn = document.createElement("button"); btn.className = "danger"; btn.textContent = "回滚";
+      btn.onclick = async () => { if (!confirm(`回滚 ${sid}？`)) return; await api("/api/rollback", {vault: vaultPath(), session_id: sid}); loadSnaps(); doScan(); };
+      row.append(code, btn); area.appendChild(row);
+    }
+  } catch (e) { area.textContent = "❌ " + e.message; }
+}
+
+doScan();
+</script>
+</body>
+</html>

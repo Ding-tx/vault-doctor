@@ -67,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
     fix_p.add_argument("--limit", type=int, default=5, help="最多处理多少个文件（默认 5）")
     fix_p.add_argument("--yes", action="store_true", help="跳过人工确认（仍会先快照）")
     fix_p.add_argument("--config", help="配置文件路径（默认找 config.local.toml 或环境变量）")
+
+    ui_p = sub.add_parser("ui", help="启动本地 Web 图形界面（浏览器打开，仅本机可访问）")
+    ui_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
+    ui_p.add_argument("--port", type=int, default=8765, help="监听端口（默认 8765，仅绑定 127.0.0.1）")
+    ui_p.add_argument("--no-open", action="store_true", help="不自动打开浏览器")
     return parser
 
 
@@ -98,6 +103,10 @@ def main(argv: list[str] | None = None) -> int:
         from vault_doctor.cli.fix import cmd_fix
 
         return cmd_fix(args)
+    if args.command == "ui":
+        from vault_doctor.cli.ui import cmd_ui
+
+        return cmd_ui(args)
     parser.error(f"未知命令：{args.command}")
     return 2
 

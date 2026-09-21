@@ -48,7 +48,10 @@ vault-doctor why . --index 1               # 用 LLM 把一条违规翻译成人
 vault-doctor fix .                         # agent 修复：起草 → diff 预览 → 你确认 → 快照 → 应用 → 复扫验证
 vault-doctor snapshots .                   # 查看修复快照
 vault-doctor rollback <sid> .              # 一键回滚一次修复会话
+vault-doctor ui .                          # 本地图形界面（浏览器打开，仅本机可访问）
 ```
+
+**Web UI**：`vault-doctor ui <vault>` 一条命令启动本地图形界面——扫描结果表格与筛选、点开违规看详情、一键“为什么？”调 LLM 解释、修复卡片逐文件勾选批准（diff 预览 + 快照 + 复扫验证）、快照列表一键回滚。零新增依赖，仅绑定 127.0.0.1。
 
 **`why` 需要 API key**（唯一需要密钥的命令）：复制 `config.example.toml` 为 `config.local.toml` 并填入 `api_key`（默认智谱 GLM，任何 OpenAI 兼容端点均可；该文件已被 gitignore，密钥不入库）。也支持环境变量 `VAULT_DOCTOR_API_KEY`。
 
