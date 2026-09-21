@@ -26,6 +26,9 @@ from engine.graph import LinkResolver, extract_links
 
 SCHEMA_VERSION = "3"
 
+# 链接解析逻辑版本：变化时即使文件未变也全量重解析（增量索引的引擎版本盲区）
+LINKS_VERSION = "2"
+
 SKIP_DIRS = {"node_modules", "__pycache__", "venv", "dist", "build"}
 
 # 附件后缀白名单："资产"指图片等附件；其余非 md 文件进 others 表（可解析、不进规则）
@@ -235,6 +238,13 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
         for relpath in set(existing_others) - seen_others:
             conn.execute("DELETE FROM others WHERE path = ?", (relpath,))
 
+        # 引擎版本盲区（2026-09-21 真实库教训）：指纹只看文件 mtime，解析逻辑
+        # 变化时 links 表仍是旧结果——同一目标 link/broken 说找不到、near-miss（现场
+        # 计算）却说是它。版本号不一致 → 全量重解析（文本从 FTS 表取，不重读盘）
+        row = conn.execute("SELECT value FROM meta WHERE key = 'links_version'").fetchone()
+        if row is None or row[0] != LINKS_VERSION:
+            changed.update(dict(conn.execute("SELECT path, body FROM content")))
+
         # 目录表整表刷新（无指纹语义，量小无所谓）
         conn.execute("DELETE FROM dirs")
         conn.executemany("INSERT OR REPLACE INTO dirs(path) VALUES(?)", [(d,) for d in all_dirs])
@@ -260,6 +270,11 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
             "INSERT INTO meta(key, value) VALUES('schema_version', ?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (SCHEMA_VERSION,),
+        )
+        conn.execute(
+            "INSERT INTO meta(key, value) VALUES('links_version', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (LINKS_VERSION,),
         )
         conn.commit()
     finally:

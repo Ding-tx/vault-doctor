@@ -103,3 +103,25 @@ def test_vaultdoctorignore(tmp_path: Path):
     assert {row[0] for row in conn.execute("SELECT path FROM files")} == {"keep.md"}
     assert {row[0] for row in conn.execute("SELECT path FROM assets")} == set()
     assert all("vendor" not in row[0] for row in conn.execute("SELECT path FROM dirs"))
+
+
+def test_links_reparse_on_engine_version_change(tmp_path: Path):
+    # 增量盲区回归（2026-09-21）：文件未变但引擎版本变化 → links 必须全量重解析
+    _write(tmp_path / "a.md", "# a\n[[b]]\n")
+    _write(tmp_path / "b.md", "# b\n")
+    index_vault(tmp_path)
+
+    conn = connect(default_db_path(tmp_path))
+    conn.execute("UPDATE links SET target_resolved = NULL")
+    conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('links_version', '0')")
+    conn.commit()
+    conn.close()
+
+    stats = index_vault(tmp_path)  # 增量跳过文件，但版本失效应触发重解析
+    assert (stats.unchanged, stats.added, stats.updated) == (2, 0, 0)
+
+    conn = connect(default_db_path(tmp_path))
+    resolved = conn.execute(
+        "SELECT target_resolved FROM links WHERE source = 'a.md'"
+    ).fetchone()[0]
+    assert resolved == "b.md"

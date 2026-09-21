@@ -170,16 +170,25 @@ def _osa_distance(a: str, b: str, cap: int) -> int | None:
 def near_miss(conn: sqlite3.Connection, target_raw: str, max_distance: int = 2) -> list[tuple[str, int]]:
     """断链目标的改名候选：与现有文件名编辑距离 ≤ max_distance 的文件，按距离升序。
 
-    比例过滤：距离达到较长名字一半以上视为无关噪声（真实库教训：
-    nqa.jpg → a.jpg，d=2 但占名长 2/3，纯属巧合而非改名）。
+    两道过滤（真实库教训 2026-09-21）：
+    - 比例过滤：距离达到较长名字一半以上视为巧合噪声（nqa.jpg → a.jpg，d=2/名长 3）
+    - 扩展名匹配：带后缀的目标只建议同后缀候选（.jpg 断链不再建议 .py 文件）；
+      无后缀目标（多为笔记名）只建议 .md 或无后缀文件
     """
-    stem = PurePosixPath(target_raw.replace("\\", "/")).stem
+    normalized = target_raw.replace("\\", "/")
+    stem = PurePosixPath(normalized).stem
+    suffix = PurePosixPath(normalized).suffix.lower()
     results: list[tuple[str, int]] = []
     for (path,) in conn.execute(
         "SELECT path FROM files UNION SELECT path FROM assets UNION SELECT path FROM others"
     ):
-        candidate_stem = PurePosixPath(path).stem
-        d = _osa_distance(stem, candidate_stem, max_distance)
-        if d is not None and d < 0.5 * max(len(stem), len(candidate_stem)):
+        candidate = PurePosixPath(path)
+        if suffix:
+            if candidate.suffix.lower() != suffix:
+                continue
+        elif candidate.suffix.lower() not in ("", ".md"):
+            continue
+        d = _osa_distance(stem, candidate.stem, max_distance)
+        if d is not None and d < 0.5 * max(len(stem), len(candidate.stem)):
             results.append((path, d))
     return sorted(results, key=lambda t: (t[1], t[0]))

@@ -116,3 +116,13 @@ def test_near_miss_ratio_filter(tmp_path: Path):
 
     conn = connect(default_db_path(tmp_path))
     assert near_miss(conn, "nqa.jpg") == []
+
+
+def test_near_miss_extension_match(tmp_path: Path):
+    # 扩展名匹配（2026-09-21）：.jpg 断链不得建议 .py 文件（跨类型噪声）
+    _write(tmp_path / "主笔记.md", "# m\n[[img/nqa.jpg]]\n")
+    (tmp_path / "qa.py").write_text("", encoding="utf-8")
+    index_vault(tmp_path)
+
+    conn = connect(default_db_path(tmp_path))
+    assert near_miss(conn, "img/nqa.jpg") == []
