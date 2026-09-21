@@ -5,6 +5,7 @@
 - 补丁自带前置条件 expected_old：应用前校验原文一致，防止上下文过期写坏文件
 - 同文件区间重叠即冲突，整文件跳过——宁可不动，不可写错
 - 应用按 (start, end) 降序，避免偏移位移；写入 newline="" 保持原换行符
+- apply_to_text（M2-B 起）：闸门预览与应用共用同一套校验/应用逻辑
 """
 from __future__ import annotations
 
@@ -12,6 +13,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import BaseModel, model_validator
+
+
+class PatchError(RuntimeError):
+    """补丁校验失败（越界 / 前置条件不符）。"""
 
 
 class Patch(BaseModel):
@@ -64,6 +69,23 @@ def detect_conflicts(patches: list[Patch]) -> list[tuple[Patch, Patch]]:
     return conflicts
 
 
+def apply_to_text(text: str, patches: list[Patch]) -> str:
+    """校验并把同一文件的补丁应用到文本，返回新文本；校验失败抛 PatchError。
+
+    校验全部在原文坐标上完成后才应用；应用按 (start, end) 降序。
+    调用方负责先用 detect_conflicts 排除重叠。"""
+    for p in patches:
+        if p.end > len(text):
+            raise PatchError(f"区间越界：[{p.start}, {p.end}) 超出文件长度 {len(text)}")
+        if p.expected_old and text[p.start : p.end] != p.expected_old:
+            raise PatchError(
+                f"前置条件不符：期望 {p.expected_old!r}，实际 {text[p.start : p.end]!r}"
+            )
+    for p in sorted(patches, key=lambda p: (p.start, p.end), reverse=True):
+        text = text[: p.start] + p.replacement + text[p.end :]
+    return text
+
+
 def apply_patches(vault: Path, patches: list[Patch], write: bool = True) -> ApplyResult:
     """把补丁应用到库文件。任何校验失败都跳过对应文件，绝不写半对的内容。"""
     result = ApplyResult(conflicts=detect_conflicts(patches))
@@ -79,31 +101,17 @@ def apply_patches(vault: Path, patches: list[Patch], write: bool = True) -> Appl
         path = vault / relpath
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
+            new_text = apply_to_text(text, group)
         except OSError as exc:
             result.files.append(FileApply(relpath, ok=False, error=f"读取失败：{exc}"))
             continue
-
-        error: str | None = None
-        for p in sorted(group, key=lambda p: (p.start, p.end)):
-            if p.end > len(text):
-                error = f"区间越界：[{p.start}, {p.end}) 超出文件长度 {len(text)}"
-                break
-            if p.expected_old and text[p.start : p.end] != p.expected_old:
-                error = (
-                    f"前置条件不符：期望 {p.expected_old!r}，"
-                    f"实际 {text[p.start : p.end]!r}"
-                )
-                break
-        if error:
-            result.files.append(FileApply(relpath, ok=False, error=error))
+        except PatchError as exc:
+            result.files.append(FileApply(relpath, ok=False, error=str(exc)))
             continue
-
-        for p in sorted(group, key=lambda p: (p.start, p.end), reverse=True):
-            text = text[: p.start] + p.replacement + text[p.end :]
 
         if write:
             try:
-                path.write_text(text, encoding="utf-8", newline="")
+                path.write_text(new_text, encoding="utf-8", newline="")
             except OSError as exc:
                 result.files.append(FileApply(relpath, ok=False, error=f"写入失败：{exc}"))
                 continue

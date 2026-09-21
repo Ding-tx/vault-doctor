@@ -55,3 +55,22 @@ def test_rules_command(capsys):
     out = capsys.readouterr().out
     assert "link/broken" in out
     assert "内置" in out
+
+
+def test_snapshots_and_rollback_cli(tmp_path, capsys):
+    from vault_doctor.policy.snapshot import create_snapshot
+
+    (tmp_path / "a.md").write_text("原", encoding="utf-8")
+    snap = create_snapshot(tmp_path, ["a.md"])
+    (tmp_path / "a.md").write_text("改", encoding="utf-8")
+
+    assert main(["snapshots", str(tmp_path)]) == 0
+    assert snap.session_id in capsys.readouterr().out
+
+    assert main(["rollback", snap.session_id, str(tmp_path)]) == 0
+    assert (tmp_path / "a.md").read_text(encoding="utf-8") == "原"
+
+
+def test_rollback_unknown_session_returns_2(tmp_path, capsys):
+    assert main(["rollback", "20990101-000000-ffffff", str(tmp_path)]) == 2
+    assert "未找到快照" in capsys.readouterr().err
