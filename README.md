@@ -37,8 +37,13 @@ pip install -e .
 ```bash
 vault-doctor scan <vault-path>             # 扫描（默认只读，绝不修改任何文件）
 vault-doctor scan . --format json          # JSON 输出（CI / 工具链集成）
+vault-doctor scan . --format sarif -o out.sarif   # SARIF 2.1.0（GitHub Code Scanning）
 vault-doctor scan . --rules note/orphan    # 只跑指定规则
+vault-doctor rules                         # 列出内置 + 插件规则
+vault-doctor why . --index 1               # 用 LLM 把一条违规翻译成人话
 ```
+
+**`why` 需要 API key**（唯一需要密钥的命令）：复制 `config.example.toml` 为 `config.local.toml` 并填入 `api_key`（默认智谱 GLM，任何 OpenAI 兼容端点均可；该文件已被 gitignore，密钥不入库）。也支持环境变量 `VAULT_DOCTOR_API_KEY`。
 
 **Exit codes / 退出码**（CI 友好）：`0` 干净 · `1` 存在 error 级违规 · `2` 用法/路径错误。
 
@@ -58,6 +63,26 @@ Grok/grok-build-main
 | `link/near-miss` | warn | 断链疑似改名/笔误：给出最接近的现有文件与编辑距离 |
 | `note/orphan` | warn | 无入链也无出链的笔记 |
 | `asset/unreferenced` | warn | 从未被任何笔记引用的图片 / PDF 等附件 |
+
+## Plugins / 插件规则
+
+任何 pip 包都能给 vault-doctor 加规则——在自己的 `pyproject.toml` 里声明：
+
+```toml
+[project.entry-points."vault_doctor.rules"]
+my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
+```
+
+安装后 `vault-doctor rules` 即可看到（来源列标"插件"）。规则 id 与内置冲突时内置优先；坏插件跳过并告警，不拖垮扫描。
+
+## GitHub Action / CI
+
+```yaml
+- uses: user/vault-doctor@v0.1.0
+  with: { path: docs/ }
+```
+
+在 PR 上直接标注断链（SARIF → GitHub Code Scanning）。也可只用 CLI 接入自有流水线：`vault-doctor scan . --format sarif -o out.sarif`，退出码 `1` 即存在 error 级违规。
 
 **Safety / 安全承诺**：vault-doctor **永远只读**——不编辑、不移动、不删除你的任何文件；修复建议只以报告形式输出。（agent 辅助修复在路线图 M2，同样默认 diff 预览 + 人工闸门。）
 
