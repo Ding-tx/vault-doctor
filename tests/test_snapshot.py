@@ -33,10 +33,13 @@ def test_list_snapshots_detail(tmp_path: Path):
     (tmp_path / "a.md").write_text("v2", encoding="utf-8")
     s2 = create_snapshot(tmp_path, ["a.md", "b.md"])
 
-    detail = list_snapshots_detail(tmp_path)  # 旧→新
-    assert [d["session_id"] for d in detail] == [s1.session_id, s2.session_id]
-    assert detail[0]["files"] == ["a.md"]
-    assert detail[1]["files"] == ["a.md", "b.md"]
+    detail = list_snapshots_detail(tmp_path)
+    # 同秒创建的两份快照 id 排序不区分先后（回滚按显式 id，顺序仅影响展示），
+    # 因此按 id 对内容断言，不假定创建顺序 == id 排序
+    by_sid = {d["session_id"]: d for d in detail}
+    assert set(by_sid) == {s1.session_id, s2.session_id}
+    assert by_sid[s1.session_id]["files"] == ["a.md"]
+    assert by_sid[s2.session_id]["files"] == ["a.md", "b.md"]
     assert all(d["created_at"] for d in detail)
     # 同一文件 a.md 出现在两份快照中——回滚目标可据此区分
     assert sum("a.md" in d["files"] for d in detail) == 2
