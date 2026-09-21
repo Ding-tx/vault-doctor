@@ -26,9 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan_p = sub.add_parser("scan", help="扫描知识库，输出违规报告")
     scan_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
     scan_p.add_argument(
-        "--format", choices=("table", "json"), default="table", help="输出格式（默认 table）"
+        "--format", choices=("table", "json", "sarif"), default="table", help="输出格式（默认 table）"
     )
+    scan_p.add_argument("-o", "--output", help="写入文件而非 stdout（json/sarif 常用）")
     scan_p.add_argument("--rules", help="只运行指定规则，逗号分隔，如 link/broken,note/orphan")
+
+    sub.add_parser("rules", help="列出已注册的规则（内置 + 插件）")
     return parser
 
 
@@ -40,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
         from vault_doctor.cli.scan import cmd_scan
 
         return cmd_scan(args)
+    if args.command == "rules":
+        from vault_doctor.cli.rules import cmd_rules
+
+        return cmd_rules(args)
     parser.error(f"未知命令：{args.command}")
     return 2
 
