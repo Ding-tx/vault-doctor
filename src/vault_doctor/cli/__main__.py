@@ -45,6 +45,13 @@ def build_parser() -> argparse.ArgumentParser:
     rb_p = sub.add_parser("rollback", help="回滚一次修复会话")
     rb_p.add_argument("session_id", help="快照 session id（vault-doctor snapshots 查看）")
     rb_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
+
+    fix_p = sub.add_parser("fix", help="起草并应用修复（M2-C：link/near-miss，过闸门+快照）")
+    fix_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
+    fix_p.add_argument("--rule", default="link/near-miss", help="修复的规则（当前仅 link/near-miss）")
+    fix_p.add_argument("--limit", type=int, default=5, help="最多处理多少个文件（默认 5）")
+    fix_p.add_argument("--yes", action="store_true", help="跳过人工确认（仍会先快照）")
+    fix_p.add_argument("--config", help="配置文件路径（默认找 config.local.toml 或环境变量）")
     return parser
 
 
@@ -72,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
         from vault_doctor.cli.rollback import cmd_rollback
 
         return cmd_rollback(args)
+    if args.command == "fix":
+        from vault_doctor.cli.fix import cmd_fix
+
+        return cmd_fix(args)
     parser.error(f"未知命令：{args.command}")
     return 2
 
