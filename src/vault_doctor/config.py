@@ -32,10 +32,11 @@ def load_llm_config(path: Path | None = None) -> LLMConfig:
 
     env_key = os.environ.get("VAULT_DOCTOR_API_KEY")
     if env_key:
+        fields = LLMConfig.model_fields
         return LLMConfig(
-            base_url=os.environ.get("VAULT_DOCTOR_BASE_URL", LLMConfig().base_url),
+            base_url=os.environ.get("VAULT_DOCTOR_BASE_URL", fields["base_url"].default),
             api_key=env_key,
-            model=os.environ.get("VAULT_DOCTOR_MODEL", LLMConfig().model),
+            model=os.environ.get("VAULT_DOCTOR_MODEL", fields["model"].default),
         )
 
     local = Path("config.local.toml")
@@ -58,5 +59,5 @@ def _from_toml(path: Path) -> LLMConfig:
     section = data.get("llm")
     if not isinstance(section, dict) or "api_key" not in section:
         raise ConfigError(f"{path} 缺少 [llm] 表或 llm.api_key 字段")
-    fields = type(LLMConfig).model_fields
+    fields = LLMConfig.model_fields
     return LLMConfig(**{k: section[k] for k in fields if k in section})
