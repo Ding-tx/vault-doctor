@@ -104,9 +104,24 @@ def cmd_why(args: argparse.Namespace) -> int:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
 
+    import vault_doctor
+    from vault_doctor.kernel.transcript import Transcript, new_session_id
+    from vault_doctor.ledger.budget import BudgetExceeded, TokenLedger
+
+    transcript = Transcript(vault / ".vaultdoctor" / "transcripts" / f"{new_session_id()}.jsonl")
+    ledger = TokenLedger(max_total_tokens=cfg.max_session_tokens, transcript=transcript)
+    transcript.append(
+        {"type": "session_start", "command": "why", "vault": str(vault),
+         "version": vault_doctor.__version__}
+    )
+
     try:
         answer, usage = explain(vault, v, client)
+        ledger.record(usage, purpose="explain", file=v.file, line=v.line)
     except LLMError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 1
+    except BudgetExceeded as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 1
     finally:
@@ -118,4 +133,6 @@ def cmd_why(args: argparse.Namespace) -> int:
             f"[dim]模型 {cfg.model} · tokens: "
             f"{usage.get('prompt_tokens', '?')} 输入 + {usage.get('completion_tokens', '?')} 输出[/dim]"
         )
+    console.print(f"[dim]会话转录：{transcript.path}[/dim]")
+    transcript.append({"type": "session_end", "ok": True})
     return 0

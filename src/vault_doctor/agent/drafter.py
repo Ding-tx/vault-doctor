@@ -133,8 +133,11 @@ def draft_file_patches(
     violations: list[Violation],
     rule_id: str,
     max_retries: int = 2,
+    ledger=None,
 ) -> tuple[list[Patch], dict]:
-    """对一个文件起草补丁：解析/定位失败回填重试（≤ max_retries）。返回 (补丁, 累计 usage)。"""
+    """对一个文件起草补丁：解析/定位失败回填重试（≤ max_retries）。返回 (补丁, 累计 usage)。
+
+    传入 ledger 时，每次模型调用都记账（purpose=draft）——预算熔断在这里生效。"""
     feedback = ""
     usage_total: dict = {}
     text = (vault / relpath).read_text(encoding="utf-8", errors="replace")
@@ -145,6 +148,8 @@ def draft_file_patches(
             content, usage = client.chat(DRAFT_SYSTEM_PROMPT, user_prompt)
         except LLMError:
             raise
+        if ledger is not None:
+            ledger.record(usage, purpose="draft", file=relpath, attempt=_attempt + 1)
         merge_usage(usage_total, usage)
 
         try:

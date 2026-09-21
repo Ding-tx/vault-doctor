@@ -75,8 +75,12 @@ def apply_with_gate(
     assume_yes: bool = False,
     input_fn=input,
     console: Console | None = None,
+    on_decision=None,
 ) -> GateOutcome:
-    """唯一写路径：确认 → 快照 → 应用。q 取消一切（含已按 y 的文件）。"""
+    """唯一写路径：确认 → 快照 → 应用。q 取消一切（含已按 y 的文件）。
+
+    on_decision(relpath, decision) 在每个文件的闸门决定时被回调
+    （decision ∈ y|n|a|q|auto，auto = assume_yes 或 a 之后的全放行）。"""
     console = console or Console()
     outcome = GateOutcome()
 
@@ -103,12 +107,17 @@ def apply_with_gate(
             outcome.skipped.extend(group)
             continue
 
-        if not always:
+        if always:
+            if on_decision:
+                on_decision(relpath, "auto")
+        else:
             console.print(f"\n[bold]提议[/bold]：{relpath} · {len(group)} 处修改 · 来源 {group[0].rule_id or '未知'}")
             if group[0].rationale:
                 console.print(f"理由：{group[0].rationale}")
             _print_diff(console, before, after, relpath)
             answer = _ask(console, input_fn)
+            if on_decision:
+                on_decision(relpath, answer)
             if answer == "n":
                 outcome.skipped.extend(group)
                 continue

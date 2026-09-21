@@ -10,6 +10,8 @@ from rich.markup import escape
 
 from vault_doctor.agent.fixer import SUPPORTED_RULES, run_fix
 from vault_doctor.config import ConfigError, load_llm_config
+from vault_doctor.kernel.transcript import Transcript, new_session_id
+from vault_doctor.ledger.budget import BudgetExceeded, TokenLedger
 from vault_doctor.llm.client import LLMClient, LLMError
 
 
@@ -30,6 +32,9 @@ def cmd_fix(args: argparse.Namespace) -> int:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
 
+    transcript = Transcript(vault / ".vaultdoctor" / "transcripts" / f"{new_session_id()}.jsonl")
+    ledger = TokenLedger(max_total_tokens=cfg.max_session_tokens, transcript=transcript)
+
     try:
         report = run_fix(
             vault,
@@ -38,8 +43,13 @@ def cmd_fix(args: argparse.Namespace) -> int:
             limit=args.limit,
             assume_yes=args.yes,
             console=console,
+            transcript=transcript,
+            ledger=ledger,
         )
     except LLMError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 1
+    except BudgetExceeded as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 1
     finally:
@@ -65,4 +75,5 @@ def cmd_fix(args: argparse.Namespace) -> int:
             f"[dim]tokens: {report.usage.get('prompt_tokens', '?')} 输入 + "
             f"{report.usage.get('completion_tokens', '?')} 输出[/dim]"
         )
+    console.print(f"[dim]会话转录：{transcript.path}[/dim]")
     return 0

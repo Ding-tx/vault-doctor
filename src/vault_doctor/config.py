@@ -17,6 +17,7 @@ class LLMConfig(BaseModel):
     api_key: str
     model: str = "glm-4-flash"
     timeout_seconds: float = 60.0
+    max_session_tokens: int | None = None
 
 
 class ConfigError(RuntimeError):

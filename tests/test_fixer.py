@@ -79,3 +79,39 @@ def test_run_fix_no_violations_never_calls_llm(tmp_path: Path):
 
     report = run_fix(tmp_path, Boom(), console=_muted_console())
     assert report.before == 0 and report.files_attempted == 0
+
+
+def test_run_fix_writes_full_transcript(tmp_path: Path):
+    from vault_doctor.kernel.transcript import Transcript
+    from vault_doctor.ledger.budget import TokenLedger
+
+    build_vault(tmp_path)
+    transcript = Transcript(tmp_path / ".vaultdoctor" / "transcripts" / "t.jsonl")
+    ledger = TokenLedger(transcript=transcript)
+
+    report = run_fix(
+        tmp_path, DispatchClient(), assume_yes=True,
+        console=_muted_console(), transcript=transcript, ledger=ledger,
+    )
+    assert report.cleared == 3
+
+    types = [e["type"] for e in transcript.read()]
+    assert types[0] == "session_start" and types[-1] == "session_end"
+    assert types.count("llm_call") == 3        # 三个文件各一次起草
+    assert types.count("draft") == 3
+    assert types.count("gate_decision") == 3   # assume_yes → 三个 auto
+    assert "applied" in types and "verify" in types
+    verify = next(e for e in transcript.read() if e["type"] == "verify")
+    assert verify["cleared"] == 3 and verify["remaining"] == []
+
+
+def test_run_fix_budget_trips_mid_session(tmp_path: Path):
+    from vault_doctor.ledger.budget import BudgetExceeded, TokenLedger
+
+    build_vault(tmp_path)
+    # DispatchClient 每次调用 110 tokens：第二次调用后 220 > 150 → 熔断
+    ledger = TokenLedger(max_total_tokens=150)
+
+    with pytest.raises(BudgetExceeded, match="150"):
+        run_fix(tmp_path, DispatchClient(), assume_yes=True,
+                console=_muted_console(), ledger=ledger)

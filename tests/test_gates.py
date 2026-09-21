@@ -113,3 +113,19 @@ def test_gate_apply_then_rollback_roundtrip(tmp_path: Path):
     restored = rollback(tmp_path, outcome.snapshot.session_id)
     assert restored == ["a.md"]
     assert _read(tmp_path / "a.md") == "AAA BBB"
+
+
+def test_gate_on_decision_callback(tmp_path: Path):
+    _setup(tmp_path, "a.md", "AAA")
+    _setup(tmp_path, "b.md", "BBB")
+    decisions: list[tuple[str, str]] = []
+
+    apply_with_gate(
+        tmp_path,
+        [_patch("a.md"), _patch("b.md", 0, 3, "Y")],
+        input_fn=_inputs("a"),
+        console=Console(file=io.StringIO(), force_terminal=False),
+        on_decision=lambda f, d: decisions.append((f, d)),
+    )
+    # a 键触发本文件 + 之后全部 auto
+    assert decisions == [("a.md", "a"), ("b.md", "auto")]
