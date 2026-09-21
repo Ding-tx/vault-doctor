@@ -26,8 +26,9 @@ def test_env_overrides_local_file(monkeypatch):
     assert cfg.api_key == "env-key"
 
 
-def test_missing_config_raises_with_guide(monkeypatch):
+def test_missing_config_raises_with_guide(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("VAULT_DOCTOR_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)  # 密封：仓库根可能存在开发者的 config.local.toml
     with pytest.raises(ConfigError, match="config.local.toml"):
         load_llm_config(None)
 
