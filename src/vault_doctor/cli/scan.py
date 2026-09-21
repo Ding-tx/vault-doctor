@@ -13,9 +13,9 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from engine.indexer import connect, default_db_path, index_vault
-from engine.rules import run_rules
-from engine.rules.base import RuleContext, Violation
+from vault_doctor.engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.rules import run_rules
+from vault_doctor.engine.rules.base import RuleContext, Violation
 
 _SEVERITY_STYLE = {"error": "[red]error[/red]", "warn": "[yellow]warn[/yellow]", "info": "[cyan]info[/cyan]"}
 

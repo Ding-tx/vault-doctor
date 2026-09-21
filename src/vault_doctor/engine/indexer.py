@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from engine.graph import LinkResolver, extract_links
+from vault_doctor.engine.graph import LinkResolver, extract_links
 
 SCHEMA_VERSION = "3"
 

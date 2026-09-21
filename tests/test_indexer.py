@@ -1,7 +1,7 @@
 """B1 索引器冒烟测试：首次索引、增量、更新/删除、隐藏目录忽略、中文检索。"""
 from pathlib import Path
 
-from engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 
 
 def _write(path: Path, text: str) -> None:

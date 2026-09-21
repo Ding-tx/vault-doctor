@@ -5,8 +5,8 @@
 """
 from __future__ import annotations
 
-from engine.graph import near_miss
-from engine.rules.base import Rule, RuleContext, Violation
+from vault_doctor.engine.graph import near_miss
+from vault_doctor.engine.rules.base import Rule, RuleContext, Violation
 
 
 def _detect(ctx: RuleContext) -> list[Violation]:

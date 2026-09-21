@@ -5,8 +5,8 @@
 """
 from __future__ import annotations
 
-from engine.rules import asset_unreferenced, link_broken, link_near_miss, note_orphan
-from engine.rules.base import Rule, RuleContext, Violation
+from vault_doctor.engine.rules import asset_unreferenced, link_broken, link_near_miss, note_orphan
+from vault_doctor.engine.rules.base import Rule, RuleContext, Violation
 
 ALL_RULES = (link_broken.RULE, link_near_miss.RULE, note_orphan.RULE, asset_unreferenced.RULE)
 

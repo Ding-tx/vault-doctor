@@ -1,8 +1,8 @@
 """B2 链接图测试：语法解析、解析目标、图谱查询、near-miss、更新刷新。"""
 from pathlib import Path
 
-from engine.graph import extract_links, links_of, near_miss, who_links_to
-from engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.graph import extract_links, links_of, near_miss, who_links_to
+from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 
 
 def _write(path: Path, text: str) -> None:

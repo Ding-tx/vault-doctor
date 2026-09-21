@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from cli.__main__ import main
+from vault_doctor.cli.__main__ import main
 from tests.fixtures import build_vault
 
 

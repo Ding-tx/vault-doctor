@@ -1,9 +1,9 @@
 """B4 验收：四条核心规则的输出与 fixtures 基准真值一一对应。"""
 from pathlib import Path
 
-from engine.indexer import connect, default_db_path, index_vault
-from engine.rules import BUILTIN_RULES, run_rules
-from engine.rules.base import RuleContext
+from vault_doctor.engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.rules import BUILTIN_RULES, run_rules
+from vault_doctor.engine.rules.base import RuleContext
 from tests.fixtures import (
     EXPECTED_BROKEN,
     EXPECTED_ORPHANS,

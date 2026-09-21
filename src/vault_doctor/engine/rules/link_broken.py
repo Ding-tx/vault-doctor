@@ -1,7 +1,7 @@
 """规则 link/broken：解析不到库内文件的链接（error 级，P0）。"""
 from __future__ import annotations
 
-from engine.rules.base import Rule, RuleContext, Violation
+from vault_doctor.engine.rules.base import Rule, RuleContext, Violation
 
 _DISPLAY = {"wikilink": "[[{t}]]", "wikilink-embed": "![[{t}]]", "md": "({t})", "md-embed": "!({t})"}
 

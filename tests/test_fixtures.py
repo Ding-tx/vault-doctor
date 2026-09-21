@@ -1,8 +1,8 @@
 """B3 验收：fixtures 病态库的引擎级基准真值（B4 规则将复用同一期望）。"""
 from pathlib import Path
 
-from engine.graph import links_of, near_miss, who_links_to
-from engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.graph import links_of, near_miss, who_links_to
+from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 from tests.fixtures import (
     ASSETS,
     NOTES,

@@ -1,4 +1,4 @@
-"""CLI 入口：python -m cli <command>。M0 仅提供 scan，其余子命令按里程碑加入。"""
+"""CLI 入口：`vault-doctor <command>`（安装后）或 `python -m vault_doctor <command>`。M0 仅提供 scan。"""
 from __future__ import annotations
 
 import argparse
@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "scan":
-        from cli.scan import cmd_scan
+        from vault_doctor.cli.scan import cmd_scan
 
         return cmd_scan(args)
     parser.error(f"未知命令：{args.command}")

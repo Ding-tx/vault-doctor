@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vault-doctor"
+version = "0.1.0"
+description = "Markdown knowledge-base doctor: graph-aware lint for broken links, orphans, unreferenced attachments and rename near-misses."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "vault-doctor contributors" }]
+keywords = ["markdown", "obsidian", "typora", "knowledge-base", "linter", "link-checker", "wikilink"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+dependencies = [
+    "httpx>=0.28",
+    "pydantic>=2.13",
+    "rich>=15.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/TODO/vault-doctor"
+
+[project.scripts]
+vault-doctor = "vault_doctor.cli.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
