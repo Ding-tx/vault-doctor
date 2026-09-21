@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("rules", help="列出已注册的规则（内置 + 插件）")
 
-    why_p = sub.add_parser("why", help="用 LLM 把一条违规翻译成人话（首次 API 调用）")
+    why_p = sub.add_parser("why", help="用 LLM 把一条违规翻译成人话（需配置 API key）")
     why_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
     why_p.add_argument("--rule", help="只看指定规则，如 link/near-miss")
     why_p.add_argument("--index", type=int, help="选第 N 条违规（默认 1）")
@@ -61,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     rb_p.add_argument("session_id", help="快照 session id（vault-doctor snapshots 查看）")
     rb_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
 
-    fix_p = sub.add_parser("fix", help="起草并应用修复（M2-C：link/near-miss，过闸门+快照）")
+    fix_p = sub.add_parser("fix", help="起草并应用修复（当前仅 link/near-miss；diff 闸门 + 快照 + 复扫验证）")
     fix_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
     fix_p.add_argument("--rule", default="link/near-miss", help="修复的规则（当前仅 link/near-miss）")
     fix_p.add_argument("--limit", type=int, default=5, help="最多处理多少个文件（默认 5）")
