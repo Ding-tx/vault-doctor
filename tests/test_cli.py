@@ -48,3 +48,10 @@ def test_scan_clean_vault_exit_zero(tmp_path: Path, capsys):
     (tmp_path / "b.md").write_text("# b\n[[a]]\n", encoding="utf-8")
     assert main(["scan", str(tmp_path)]) == 0
     assert "未发现违规" in capsys.readouterr().out
+
+
+def test_rules_command(capsys):
+    assert main(["rules"]) == 0
+    out = capsys.readouterr().out
+    assert "link/broken" in out
+    assert "内置" in out

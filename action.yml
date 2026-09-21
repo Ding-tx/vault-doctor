@@ -1,0 +1,28 @@
+name: 'vault-doctor scan'
+description: 'Graph-aware markdown lint: broken wikilinks, orphan notes, unreferenced attachments and rename near-misses.'
+branding:
+  icon: 'activity'
+  color: 'blue'
+inputs:
+  path:
+    description: 'Vault path to scan, relative to the repository root'
+    required: false
+    default: '.'
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install vault-doctor
+      run: pipx install --python "$(command -v python)" "${{ github.action_path }}"
+      shell: bash
+    - name: Scan
+      run: vault-doctor scan "${{ inputs.path }}" --format sarif --output vault-doctor.sarif
+      shell: bash
+    - name: Upload to code scanning
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: vault-doctor.sarif
+        category: vault-doctor

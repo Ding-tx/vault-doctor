@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
+from vault_doctor.cli import sarif
 from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 from vault_doctor.engine.rules import run_rules
 from vault_doctor.engine.rules.base import RuleContext, Violation
@@ -39,11 +40,15 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 2
 
     rule_ids = [r.strip() for r in args.rules.split(",") if r.strip()] if args.rules else None
-    stats, notes, assets, violations = _collect(vault, rule_ids)
+    try:
+        stats, notes, assets, violations = _collect(vault, rule_ids)
+    except KeyError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 2
 
-    if args.format == "json":
-        print(
-            json.dumps(
+    if args.format in ("json", "sarif"):
+        if args.format == "json":
+            payload = json.dumps(
                 {
                     "vault": str(vault),
                     "notes": notes,
@@ -54,7 +59,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 ensure_ascii=False,
                 indent=2,
             )
-        )
+        else:
+            payload = sarif.dumps(violations)
+        if args.output:
+            Path(args.output).write_text(payload, encoding="utf-8")
+        else:
+            print(payload)
     else:
         render_table(vault, notes, assets, stats.elapsed, violations)
 
