@@ -32,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan_p.add_argument("--rules", help="只运行指定规则，逗号分隔，如 link/broken,note/orphan")
 
     sub.add_parser("rules", help="列出已注册的规则（内置 + 插件）")
+
+    why_p = sub.add_parser("why", help="用 LLM 把一条违规翻译成人话（首次 API 调用）")
+    why_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
+    why_p.add_argument("--rule", help="只看指定规则，如 link/near-miss")
+    why_p.add_argument("--index", type=int, help="选第 N 条违规（默认 1）")
+    why_p.add_argument("--config", help="配置文件路径（默认找 config.local.toml 或环境变量）")
     return parser
 
 
@@ -47,6 +53,10 @@ def main(argv: list[str] | None = None) -> int:
         from vault_doctor.cli.rules import cmd_rules
 
         return cmd_rules(args)
+    if args.command == "why":
+        from vault_doctor.cli.why import cmd_why
+
+        return cmd_why(args)
     parser.error(f"未知命令：{args.command}")
     return 2
 

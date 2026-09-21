@@ -1,0 +1,9 @@
+# 复制本文件为 config.local.toml 并填入你的 api_key。
+# config.local.toml 已被 .gitignore 忽略，密钥绝不会进入版本库。
+
+[llm]
+# OpenAI 兼容端点；默认智谱 GLM（https://open.bigmodel.cn）
+base_url = "https://open.bigmodel.cn/api/paas/v4"
+api_key = "在此填入你的 API key"
+model = "glm-4-flash"
+# timeout_seconds = 60.0
