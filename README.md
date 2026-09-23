@@ -54,7 +54,7 @@ vault-doctor ui .                          # 本地图形界面（浏览器打�
 vault-doctor mcp .                         # 只读 MCP server（stdio，供 Claude Code / Cursor 调用）
 ```
 
-**Web UI**：`vault-doctor ui <vault>` 一条命令启动本地图形界面——扫描结果表格与筛选、点开违规看详情、一键“为什么？”调 LLM 解释、修复卡片逐文件勾选批准（diff 预览 + 快照 + 复扫验证）、快照列表一键回滚。零新增依赖，仅绑定 127.0.0.1。
+**Web UI**：`vault-doctor ui <vault>` 启动本地图形界面，只绑 127.0.0.1，不新增任何依赖。体检报告、违规详情、修复卡片、快照回滚都在页面上——长这样：
 
 <p align="center">
   <img src="docs/ui-fix.png" alt="修复卡片：为什么需要修改 → AI 的修改理由 → diff 预览，复扫验证通过后亮起绿徽标" width="880">
@@ -63,11 +63,11 @@ vault-doctor mcp .                         # 只读 MCP server（stdio，供 Cla
   <img src="docs/ui-snapshots.png" alt="修复结果与快照列表：清除 N 个文件的问题、无残留；每次修复都有快照，可一键回滚" width="880">
 </p>
 
-**AI 功能需要 API key**（`why` / `fix` / UI 的 AI 按钮；任何 OpenAI 兼容端点均可）。配置三选一：
+**AI 功能需要 API key**（`why` / `fix` / Web UI 里的 AI 按钮，任何 OpenAI 兼容端点都行）。
 
-1. **最简单：Web UI 的“模型与 API key”卡片**——选厂商（智谱 GLM / DeepSeek / Kimi / 通义千问 / 豆包 / MiniMax / 硅基流动 / OpenAI / 自定义）→ 粘贴 key → 测试连接 → 保存（写入 `config.local.toml`；key 只存本机，页面上仅打码显示）；
-2. 复制 `config.example.toml` 为 `config.local.toml` 手填（该文件已被 gitignore，密钥不入库）；
-3. 环境变量 `VAULT_DOCTOR_API_KEY`（可选 `VAULT_DOCTOR_BASE_URL` / `VAULT_DOCTOR_MODEL`）。
+最快的配法：打开 Web UI 的“模型与 API key”卡片，选厂商（智谱、DeepSeek、Kimi、通义千问、豆包、MiniMax、硅基流动、OpenAI 都有预设，也可以自定义），贴上 key，点“测试连接”确认能通，再保存。key 写进本机的 `config.local.toml`——这个文件在 gitignore 里，不会进仓库；页面上也只显示打码后的几位。
+
+不想用界面配的话：复制 `config.example.toml` 改名 `config.local.toml` 手填，或直接用环境变量 `VAULT_DOCTOR_API_KEY`（可选 `VAULT_DOCTOR_BASE_URL` / `VAULT_DOCTOR_MODEL`）。
 
 **Exit codes / 退出码**（CI 友好）：`0` 干净 · `1` 存在 error 级违规 · `2` 用法/路径错误。
 
@@ -98,7 +98,7 @@ vault-doctor mcp D:\notes           # stdio server，由 MCP 客户端拉起
 }
 ```
 
-暴露五个只读工具：`scan_vault`（全库体检）、`outgoing_links` / `backlinks`（链接关系）、`near_miss_candidates`（改名候选）、`search_notes`（全文检索，支持中文子串）。**不含任何写工具**——修改永远走 `fix` 命令的人工闸门。
+暴露五个只读工具：`scan_vault`（全库体检）、`outgoing_links` / `backlinks`（链接关系）、`near_miss_candidates`（改名候选）、`search_notes`（全文检索，支持中文子串）。没有写工具，改文件只能走 `fix` 命令的人工闸门。
 
 ## Rules / 内置规则
 
@@ -129,7 +129,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 在 PR 上直接标注断链（SARIF → GitHub Code Scanning）。也可只用 CLI 接入自有流水线：`vault-doctor scan . --format sarif -o out.sarif`，退出码 `1` 即存在 error 级违规。
 
-**Safety / 安全承诺**：`scan` / `rules` 永远只读。`fix` 的每一次写入都走同一条路径：**diff 预览 → 你的逐文件确认（y/n/a/q，可随时 q 全取消）→ 自动快照 → 应用 → 复扫验证**；`rollback` 一键还原，全程事件流留痕（`.vaultdoctor/transcripts/`，含每次 LLM 调用的 token 与你在闸门按的每个键），并支持会话级 token 预算熔断。
+**Safety / 安全**：`scan` 和 `rules` 永远只读。`fix` 每次写入前都要过 diff 预览和逐文件确认（y/n/a/q，随时 q 全取消），写入前自动快照，写完复扫验证；不满意就 `rollback` 还原。全程留痕在 `.vaultdoctor/transcripts/`——每次 LLM 调用的 token、你在闸门按的每个键都在里面，另有会话级 token 预算熔断。
 
 ## How it works / 工作原理
 
