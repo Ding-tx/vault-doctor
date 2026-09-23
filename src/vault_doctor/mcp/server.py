@@ -1,4 +1,4 @@
-"""MCP server（DESIGN 6.5）：把只读图谱工具暴露给 Claude Code / Cursor 等 agent。
+"""MCP server：把只读图谱工具暴露给 Claude Code / Cursor 等 agent。
 
 分层：tools.py 是纯引擎函数（无 mcp 依赖，直接可测）；本模块懒加载 mcp SDK
 （可选依赖 vault-doctor[mcp]）。stdio 传输，只读工具，不暴露任何写路径——

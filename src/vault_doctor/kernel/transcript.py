@@ -1,4 +1,4 @@
-"""事件流（M2-D）：append-only JSONL，fix/why 会话的完整记录，M4 replay 的数据源。
+"""事件流：append-only JSONL，fix/why 会话的完整记录，也是将来会话重放的数据源。
 
 事件约定（type 字段）：
 - session_start / session_end —— 会话边界，携带 command/vault/version/结果

@@ -5,7 +5,7 @@
 需要 Python ≥ 3.12：
 
 ```bash
-git clone <repo> && cd vault-doctor
+git clone https://github.com/Ding-tx/vault-doctor.git && cd vault-doctor
 pip install -e .
 pip install pytest
 pytest -v

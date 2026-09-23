@@ -1,4 +1,4 @@
-"""token 账本（M2-D）：会话内累计用量、超预算熔断、事件流留痕。
+"""token 账本：会话内累计用量、超预算熔断、事件流留痕。
 
 预算语义：max_total_tokens 按 prompt+completion 之和计算；
 超限在下一次 record 时抛 BudgetExceeded（当前那次调用已发生，后续调用被阻止）。

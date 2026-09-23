@@ -1,4 +1,4 @@
-"""fix 子命令（M2-C）：起草 → 闸门 → 应用 → 复扫验证。"""
+"""fix 子命令：起草 → 闸门 → 应用 → 复扫验证。"""
 from __future__ import annotations
 
 import argparse
