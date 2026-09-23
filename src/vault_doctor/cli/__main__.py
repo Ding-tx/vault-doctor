@@ -72,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     ui_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
     ui_p.add_argument("--port", type=int, default=8765, help="监听端口（默认 8765，仅绑定 127.0.0.1）")
     ui_p.add_argument("--no-open", action="store_true", help="不自动打开浏览器")
+
+    mcp_p = sub.add_parser(
+        "mcp", help="以 MCP server 运行（stdio 只读图谱工具，供 Claude Code / Cursor 等 agent 调用）"
+    )
+    mcp_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
     return parser
 
 
@@ -107,6 +112,10 @@ def main(argv: list[str] | None = None) -> int:
         from vault_doctor.cli.ui import cmd_ui
 
         return cmd_ui(args)
+    if args.command == "mcp":
+        from vault_doctor.cli.mcp import cmd_mcp
+
+        return cmd_mcp(args)
     parser.error(f"未知命令：{args.command}")
     return 2
 

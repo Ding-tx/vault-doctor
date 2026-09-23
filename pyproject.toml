@@ -26,6 +26,10 @@ dependencies = [
     "rich>=15.0",
 ]
 
+[project.optional-dependencies]
+# MCP server 模式（vault-doctor mcp）：只读图谱工具暴露给外部 agent
+mcp = ["mcp>=1.2"]
+
 [project.urls]
 Homepage = "https://github.com/TODO/vault-doctor"
 

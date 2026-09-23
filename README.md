@@ -49,6 +49,7 @@ vault-doctor fix .                         # agent 修复：起草 → diff 预�
 vault-doctor snapshots .                   # 查看修复快照
 vault-doctor rollback <sid> .              # 一键回滚一次修复会话
 vault-doctor ui .                          # 本地图形界面（浏览器打开，仅本机可访问）
+vault-doctor mcp .                         # 只读 MCP server（stdio，供 Claude Code / Cursor 调用）
 ```
 
 **Web UI**：`vault-doctor ui <vault>` 一条命令启动本地图形界面——扫描结果表格与筛选、点开违规看详情、一键“为什么？”调 LLM 解释、修复卡片逐文件勾选批准（diff 预览 + 快照 + 复扫验证）、快照列表一键回滚。零新增依赖，仅绑定 127.0.0.1。
@@ -64,6 +65,27 @@ vault-doctor ui .                          # 本地图形界面（浏览器打�
 vendor/
 Grok/grok-build-main
 ```
+
+## MCP server（让 Claude Code / Cursor 读懂你的知识库）
+
+安装可选依赖后，`vault-doctor mcp` 变成一个**只读 MCP server**（stdio）——任何支持 MCP 的 agent 都能直接查询你知识库的图谱：
+
+```bash
+pip install "vault-doctor[mcp]"     # 可选依赖，不装不影响其余功能
+vault-doctor mcp D:\notes           # stdio server，由 MCP 客户端拉起
+```
+
+在 Claude Desktop / Claude Code / Cursor 的 MCP 配置中加一行：
+
+```json
+{
+  "mcpServers": {
+    "vault-doctor": { "command": "vault-doctor", "args": ["mcp", "D:\\notes"] }
+  }
+}
+```
+
+暴露五个只读工具：`scan_vault`（全库体检）、`outgoing_links` / `backlinks`（链接关系）、`near_miss_candidates`（改名候选）、`search_notes`（全文检索，支持中文子串）。**不含任何写工具**——修改永远走 `fix` 命令的人工闸门。
 
 ## Rules / 内置规则
 
@@ -106,7 +128,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 - **M1 ✅**：规则 SDK（插件化注册）、SARIF 输出 + GitHub Action、`why` 命令
 - **M2 ✅**：agent 修复循环——`fix`（起草 → 闸门 → 快照 → 复扫验证）、`rollback`、JSONL 会话转录、token 预算熔断
-- **M3**：本地 embedding 语义查重、模型路由、**MCP server**（把只读图谱工具暴露给 Claude Code / Cursor 等任意 agent）
+- **M3**：本地 embedding 语义查重、模型路由、**MCP server ✅**（`vault-doctor mcp`，只读图谱工具）
 - **M4**：会话重放（replay）、规则插件注册表
 
 ## Comparison / 对比

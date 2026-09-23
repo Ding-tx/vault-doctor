@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased（M3 开发中）
+
+- **MCP server 模式（M3-A）**：`vault-doctor mcp <vault>` 以 stdio 启动只读 MCP server（Claude Code / Cursor / ZCode 等 agent 即插即用）。五个只读图谱工具：`scan_vault` 全库体检、`outgoing_links` / `backlinks` 链接关系、`near_miss_candidates` 改名候选、`search_notes` 全文检索（中文子串）。可选依赖：`pip install "vault-doctor[mcp]"`；不装不影响其余功能
+- 本地 Web UI：扫描表格（按文件分组、严重度/规则/关键词筛选）、"为什么？"LLM 解释、修复卡片（为什么改/AI 理由/diff/预览即验证）、快照详情与一键回滚；零新增依赖，仅绑 127.0.0.1
+- 全量文案白话化：规则中文名（断链/疑似改名/孤儿笔记/未引用附件）、违规消息与图例去术语化
+
 ## v0.3.0 (2026-09-21)
 
 - **agent 修复循环**：`vault-doctor fix`——LLM 起草补丁（本地定位、前置条件校验）→ diff 预览 + y/n/a/q 人工闸门 → 自动快照 → 应用 → **复扫验证**（违规 N → 残留 M）
