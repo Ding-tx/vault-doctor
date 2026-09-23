@@ -1,6 +1,6 @@
 # vault-doctor 🩺
 
-[![CI](https://github.com/vault-doctor/vault-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/vault-doctor/vault-doctor/actions/workflows/ci.yml)
+[![CI](https://github.com/Ding-tx/vault-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/Ding-tx/vault-doctor/actions/workflows/ci.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -123,7 +123,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 ## GitHub Action / CI
 
 ```yaml
-- uses: user/vault-doctor@v0.1.0
+- uses: Ding-tx/vault-doctor@v0.4.0
   with: { path: docs/ }
 ```
 

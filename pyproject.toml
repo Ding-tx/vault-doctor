@@ -31,7 +31,7 @@ dependencies = [
 mcp = ["mcp>=1.2"]
 
 [project.urls]
-Homepage = "https://github.com/TODO/vault-doctor"
+Homepage = "https://github.com/Ding-tx/vault-doctor"
 
 [project.scripts]
 vault-doctor = "vault_doctor.cli.__main__:main"
