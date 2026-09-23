@@ -26,7 +26,7 @@ warn   asset/unreferenced  assets/old.png       未引用附件：没有任何�
 
 lychee checks **external** URLs. markdownlint fixes **formatting**. Obsidian plugins are editor-locked and detect-only. vault-doctor covers the missing layer: it understands the **graph** of your vault — `[[wikilinks]]`, backlinks, orphans — works on **any** markdown folder (Obsidian / Typora / VS Code / plain git repos), and its near-miss engine maps broken links to renamed files (Damerau-Levenshtein ≤ 2, filtered by name-length ratio and file extension).
 
-lychee 管**外部**链接，markdownlint 管**格式**，Obsidian 插件锁编辑器且只检测。vault-doctor 补上缺的那一层：它**懂你知识库的图谱**——wikilink、反向链接、孤儿——任何 markdown 文件夹都能用；near-miss 引擎还能把断链映射到改名后的文件。
+它来自我自己的笔记库：Typora + git 管了几年，几百篇攒下来，文件一改名、一挪位置，笔记里的链接就悄悄烂掉，而 lychee 只查外部网址，Obsidian 插件又离不开编辑器。vault-doctor 补的就是这一层——它**懂你知识库的图谱**：wikilink、反向链接、孤儿，任何 markdown 文件夹都能用；near-miss 引擎还能把断链映射到改名后的文件（Damerau-Levenshtein ≤ 2，按名称长度比和扩展名过滤误报）。
 
 ## Install / 安装
 
@@ -139,10 +139,8 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 ## Roadmap / 路线图
 
-- **M1 ✅**：规则 SDK（插件化注册）、SARIF 输出 + GitHub Action、`why` 命令
-- **M2 ✅**：agent 修复循环——`fix`（起草 → 闸门 → 快照 → 复扫验证）、`rollback`、JSONL 会话转录、token 预算熔断
-- **M3**：本地 embedding 语义查重、模型路由、**MCP server ✅**（`vault-doctor mcp`，只读图谱工具）
-- **M4**：会话重放（replay）、规则插件注册表
+- **已有**：规则插件 SDK、SARIF + GitHub Action、`why` 解释、agent 修复循环（fix / rollback / 会话转录 / token 熔断）、只读 MCP server、Web UI
+- **想做**：本地 embedding 语义查重、模型路由、外部 URL 检查（与 lychee 配合）、会话重放、插件注册表
 
 ## Comparison / 对比
 
@@ -164,7 +162,7 @@ pip install pytest
 pytest -v
 ```
 
-113 项测试覆盖：索引与增量（含链接自愈/失效）、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码/过滤/截断与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断、MCP 工具契约、Web UI 接口（扫描/规则/配置/目录浏览）。
+113 项测试每次推送都在 GitHub Actions 上双平台（Ubuntu + Windows）全量跑。
 
 ## License
 
