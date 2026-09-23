@@ -6,98 +6,108 @@
 <title>vault-doctor · 知识库体检医生</title>
 <style>
   :root {
-    --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --line-soft:#eef0f3;
-    --fg:#111827; --muted:#6b7280;
-    --accent:#2563eb; --accent-h:#1d4ed8; --accent-bg:#dbeafe;
-    --red:#dc2626; --red-bg:#fee2e2;
+    --bg:#f4f6f8; --card:#fff; --line:#e4e8ec; --line-soft:#eef1f4;
+    --fg:#111827; --muted:#6b7280; --muted-2:#9ca3af;
+    --accent:#0d9488; --accent-h:#0f766e; --accent-bg:#ccfbf1; --accent-soft:#f0fdfa;
+    --red:#dc2626; --red-deep:#b91c1c; --red-bg:#fee2e2; --red-line:#f3b6b6;
     --amber:#b45309; --amber-bg:#fef3c7;
     --blue:#1d4ed8; --blue-bg:#dbeafe;
     --green:#15803d; --green-bg:#dcfce7;
-    --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.07);
+    --shadow-lg:0 10px 28px rgba(16,24,40,.13), 0 2px 8px rgba(16,24,40,.07);
   }
-  * { box-sizing: border-box; }
+  * { box-sizing:border-box; }
   body { margin:0; font:14px/1.65 system-ui,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--fg); background:var(--bg); }
-  code { font:12px/1.5 Consolas,"Courier New",monospace; background:var(--bg); padding:1px 6px; border-radius:5px; }
+  code { font:12px/1.5 ui-monospace,Consolas,monospace; background:var(--bg); padding:1px 6px; border-radius:5px; }
+  svg.ic { width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-.12em; }
 
   /* ---- 顶栏 ---- */
-  header { position:sticky; top:0; z-index:20; padding:10px 24px; background:rgba(255,255,255,.92);
-           backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  header { position:sticky; top:0; z-index:20; padding:10px 24px; background:rgba(255,255,255,.94);
+           backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
            display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  .brand { display:flex; align-items:center; gap:10px; }
-  .logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2563eb,#0ea5e9);
-          display:flex; align-items:center; justify-content:center; font-size:19px; box-shadow:var(--shadow); }
-  .brand h1 { font-size:16px; margin:0; letter-spacing:.2px; }
+  .brand { display:flex; align-items:center; gap:11px; }
+  .logo { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#0d9488,#0369a1);
+          display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; box-shadow:0 3px 8px rgba(13,148,136,.35); }
+  .brand h1 { font-size:17px; margin:0; letter-spacing:.2px; font-weight:700; }
   .brand .slogan { font-size:11px; color:var(--muted); }
   .searchbar { margin-left:auto; display:flex; gap:8px; align-items:center; }
-  input[type=text] { font:inherit; padding:6px 11px; border:1px solid var(--line); border-radius:8px;
-                     min-width:340px; background:#fff; transition:border-color .15s, box-shadow .15s; }
+  input[type=text] { font:inherit; padding:7px 12px; border:1px solid var(--line); border-radius:9px; min-width:330px;
+                     background:#fff; transition:border-color .15s, box-shadow .15s; }
   input[type=text]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
 
   /* ---- 按钮 ---- */
-  button { font:inherit; padding:6px 16px; border:1px solid var(--line); border-radius:8px; background:#fff;
-           color:var(--fg); cursor:pointer; transition:background .15s, border-color .15s, color .15s, transform .05s; }
-  button:hover { border-color:#c9ced6; background:#f8fafc; }
+  button { font:inherit; padding:7px 18px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--fg);
+           cursor:pointer; transition:all .15s; }
+  button:hover { border-color:#c8cfd8; background:#f8fafc; }
   button:active { transform:translateY(1px); }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:500; }
-  button.primary:hover { background:var(--accent-h); border-color:var(--accent-h); }
-  button.danger { color:var(--red); border-color:#f3b6b6; background:#fff; }
+  button.primary { background:linear-gradient(180deg,#14b8a6,#0d9488); border-color:var(--accent); color:#fff; font-weight:600;
+                   box-shadow:0 1px 2px rgba(13,148,136,.35); }
+  button.primary:hover { background:linear-gradient(180deg,#0d9488,#0f766e); border-color:var(--accent-h); }
+  button.danger { color:var(--red-deep); border-color:var(--red-line); background:#fff; }
   button.danger:hover { background:var(--red-bg); border-color:var(--red); }
   button:disabled { opacity:.5; cursor:not-allowed; transform:none; }
 
-  main { max-width:1120px; margin:0 auto; padding:20px 24px 24px; }
+  main { max-width:1140px; margin:0 auto; padding:18px 24px 20px; }
 
   /* ---- 统计磁贴 ---- */
-  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
-  .tile { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; box-shadow:var(--shadow); }
-  .tile .num { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .tile .label { font-size:12px; color:var(--muted); margin-top:1px; }
-  .tile.bad .num { color:var(--red); }
-  .tile.bad { border-color:#f3b6b6; background:linear-gradient(0deg,#fff, #fff7f7); }
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:12px 16px;
+          box-shadow:var(--shadow); display:flex; gap:12px; align-items:center; }
+  .ticon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:19px; flex:none; }
+  .ticon.notes { background:var(--accent-bg); color:var(--accent-h); }
+  .ticon.assets { background:var(--blue-bg); color:var(--blue); }
+  .ticon.total { background:#f1f5f9; color:#475569; }
+  .ticon.err { background:var(--red-bg); color:var(--red); }
+  .tile .num { font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .tile .label { font-size:12px; color:var(--muted); }
+  .tile.bad { border-color:var(--red-line); background:linear-gradient(0deg,#fff,#fff5f5); }
+  .tile.bad .num { color:var(--red-deep); }
 
-  /* ---- 卡片与控件 ---- */
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:14px 0; box-shadow:var(--shadow); }
-  .card h3 { margin:0 0 10px; font-size:14px; }
+  /* ---- 主卡（筛选 + 表格） ---- */
+  .card { background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px 18px 16px; margin:12px 0; box-shadow:var(--shadow); }
+  .card h3 { margin:0 0 10px; font-size:14px; display:flex; align-items:center; gap:8px; }
   .hint { font-size:12px; color:var(--muted); margin-bottom:10px; }
-  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  select { font:inherit; font-size:13px; padding:5px 30px 5px 10px; border:1px solid var(--line); border-radius:8px; background:#fff;
+  .toolbar { display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  select { font:inherit; font-size:13px; padding:5px 30px 5px 11px; border:1px solid var(--line); border-radius:8px; background:#fff;
            appearance:none; -webkit-appearance:none; cursor:pointer;
            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
            background-repeat:no-repeat; background-position:right 9px center; transition:border-color .15s; }
   select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
-  .toolbar input[type=text] { min-width:200px; padding:5px 11px; font-size:13px; }
-  .status { color:var(--muted); font-size:12px; margin-left:auto; }
+  .toolbar input[type=text] { min-width:190px; padding:5px 11px; font-size:13px; }
+  .status { color:var(--muted); font-size:12px; margin-left:auto; white-space:nowrap; }
+  .status.err { color:var(--red-deep); }
 
-  /* ---- 徽章 ---- */
-  .pill { display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; }
-  .pill.error { background:var(--red-bg); color:var(--red); }
-  .pill.warn  { background:var(--amber-bg); color:var(--amber); }
-  .pill.info  { background:var(--blue-bg); color:var(--blue); }
-  .sub { font-size:11px; color:var(--muted); font-weight:400; margin-left:5px; }
-
-  /* ---- 帮助图例 ---- */
-  details.card { padding:0; overflow:hidden; }
-  details.card summary { list-style:none; cursor:pointer; padding:11px 18px; font-size:13px; font-weight:600;
-                         color:var(--muted); display:flex; align-items:center; gap:8px; user-select:none; }
-  details.card summary::-webkit-details-marker { display:none; }
-  details.card summary::after { content:""; width:10px; height:10px; margin-left:auto; margin-right:4px;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-size:contain; transition:transform .18s; }
-  details[open].card summary::after { transform:rotate(180deg); }
-  #legendBody { padding:4px 18px 14px; border-top:1px solid var(--line-soft); }
-  .legend-row { display:flex; gap:10px; padding:3px 0; font-size:13px; align-items:baseline; }
-  .legend-row b { min-width:190px; font-weight:600; white-space:nowrap; }
+  /* ---- 名词解释弹出卡 ---- */
+  .helpdd { position:relative; }
+  .helpdd summary { list-style:none; cursor:pointer; font-size:12px; color:var(--muted); padding:5px 10px; border:1px dashed var(--line);
+                    border-radius:8px; user-select:none; white-space:nowrap; }
+  .helpdd summary::-webkit-details-marker { display:none; }
+  .helpdd summary:hover { color:var(--accent-h); border-color:var(--accent); }
+  .helpdd .pop { position:absolute; right:0; top:calc(100% + 8px); width:600px; max-width:78vw; background:#fff;
+                 border:1px solid var(--line); border-radius:13px; box-shadow:var(--shadow-lg); padding:14px 18px; z-index:40; }
+  .legend-row { display:flex; gap:10px; padding:4px 0; font-size:13px; align-items:baseline; }
+  .legend-row b { min-width:200px; font-weight:600; white-space:nowrap; }
   .legend-row span { color:var(--muted); }
+  .legend-h { font-weight:700; font-size:13px; margin:6px 0 2px; }
 
   /* ---- 表格 ---- */
   table { border-collapse:collapse; width:100%; font-size:13px; }
-  th { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); font-size:12px; font-weight:600; color:var(--muted); }
-  td { padding:9px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); font-size:12px; font-weight:600; color:var(--muted); }
+  td { padding:8px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
   tr.row { cursor:pointer; transition:background .1s; }
-  tr.row:hover { background:#f8fafc; }
-  td.pos { font-family:Consolas,"Courier New",monospace; font-size:12px; color:#374151; max-width:280px;
-           overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .empty { padding:52px 0; text-align:center; color:var(--muted); }
-  .empty .icon { font-size:34px; opacity:.5; }
+  tr.row:hover { background:var(--accent-soft); }
+  tr.grp td { background:#f8fafc; padding:6px 10px; border-bottom:1px solid var(--line); }
+  .grp-path { font:600 12.5px ui-monospace,Consolas,monospace; color:#334155; word-break:break-all; }
+  .grp-cnt { font-size:11px; color:var(--muted); background:var(--bg); border-radius:999px; padding:1px 9px; margin-left:8px; white-space:nowrap; }
+  .sevcell { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; white-space:nowrap; }
+  .sevcell.error { color:var(--red-deep); } .sevcell.warn { color:var(--amber); } .sevcell.info { color:var(--blue); }
+  .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .dot.error { background:var(--red); } .dot.warn { background:#d97706; } .dot.info { background:var(--blue); }
+  .rname { font-weight:600; }
+  .sub { font-size:11px; color:var(--muted-2); font-weight:400; margin-left:5px; }
+  td.linecol { font:12px ui-monospace,Consolas,monospace; color:var(--muted); white-space:nowrap; width:56px; }
+  .empty { padding:56px 0; text-align:center; color:var(--muted); }
+  .empty .icon { font-size:36px; opacity:.5; }
 
   /* ---- 详情 ---- */
   #detail { border-left:4px solid var(--accent); }
@@ -105,19 +115,27 @@
   .kv b { color:var(--muted); font-weight:500; }
   .answer { white-space:pre-wrap; background:var(--bg); border-radius:8px; padding:10px 13px; margin-top:8px; font-size:13px; }
 
-  /* ---- 修复卡片 ---- */
-  .filecard { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:10px 0; background:#fff; }
+  /* ---- 修复：步骤条 + 文件卡 ---- */
+  .stepper { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:2px 0 10px; }
+  .stp { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted-2); }
+  .stp .dotc { width:21px; height:21px; border-radius:50%; border:1.5px solid var(--line); display:flex; align-items:center;
+               justify-content:center; font-size:11px; font-weight:600; background:#fff; color:var(--muted-2); flex:none; }
+  .stp.act { color:var(--fg); font-weight:600; }
+  .stp.act .dotc { border-color:var(--accent); color:var(--accent-h); box-shadow:0 0 0 3px var(--accent-bg); }
+  .stp.done { color:var(--accent-h); }
+  .stp.done .dotc { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sep { color:var(--muted-2); font-size:12px; }
+  .filecard { border:1px solid var(--line); border-radius:11px; padding:12px 14px; margin:10px 0; background:#fff; }
   .filecard .head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .sect { display:flex; align-items:center; gap:8px; margin-top:12px; margin-bottom:5px; font-size:12px; color:var(--muted); font-weight:600; }
-  .step { display:inline-flex; width:19px; height:19px; border-radius:50%; background:var(--accent-bg); color:var(--accent);
+  .step { display:inline-flex; width:19px; height:19px; border-radius:50%; background:var(--accent-bg); color:var(--accent-h);
           font-size:11px; font-weight:700; align-items:center; justify-content:center; flex:none; }
-  pre.diff { background:var(--bg); border:1px solid var(--line-soft); border-radius:8px; padding:10px 12px; overflow:auto;
-             font:12px/1.55 Consolas,monospace; }
-  pre.diff .add { color:var(--green); display:block; } pre.diff .del { color:var(--red); display:block; }
-  pre.diff .hunk { color:var(--blue); display:block; }
+  pre.diff { background:#0f172a; color:#e2e8f0; border-radius:9px; padding:11px 13px; overflow:auto; font:12px/1.6 ui-monospace,Consolas,monospace; }
+  pre.diff .add { color:#6ee7b7; display:block; } pre.diff .del { color:#fda4af; display:block; }
+  pre.diff .hunk { color:#93c5fd; display:block; }
   .badge { display:inline-block; margin-top:8px; padding:2px 10px; border-radius:999px; font-size:12px; }
   .badge.ok { background:var(--green-bg); color:var(--green); }
-  .badge.err { background:var(--red-bg); color:var(--red); }
+  .badge.err { background:var(--red-bg); color:var(--red-deep); }
   .badge.plain { background:var(--bg); color:var(--muted); }
 
   /* ---- 快照 ---- */
@@ -125,11 +143,19 @@
   .snapitem:last-child { border-bottom:none; }
   .snapitem .meta { min-width:0; }
   .snapitem .when { font-size:13px; font-weight:600; }
-  .snapitem .sid { font-size:11px; color:var(--muted); margin-left:8px; }
+  .snapitem .sid { font-size:11px; color:var(--muted-2); margin-left:8px; }
 
-  .ok { color:var(--green); font-weight:600; } .err { color:var(--red); }
-  .foot { max-width:1120px; margin:0 auto; padding:6px 24px 42px; color:var(--muted); font-size:12px; text-align:center; }
-  @media (max-width:760px) { .tiles { grid-template-columns:repeat(2,1fr); } input[type=text] { min-width:0; flex:1; } .searchbar { width:100%; } }
+  .ok { color:var(--green); font-weight:600; } .err { color:var(--red-deep); }
+
+  /* ---- 信任条 ---- */
+  .trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding:14px 0 44px; }
+  .trust .chip { display:inline-flex; gap:6px; align-items:center; background:#fff; border:1px solid var(--line);
+                 border-radius:999px; padding:5px 14px; font-size:12px; color:var(--muted); }
+  @media (max-width:760px) {
+    .tiles { grid-template-columns:repeat(2,1fr); }
+    input[type=text] { min-width:0; flex:1; } .searchbar { width:100%; }
+    .helpdd .pop { left:0; right:auto; }
+  }
 </style>
 </head>
 <body>
@@ -148,10 +174,22 @@
 </header>
 <main>
   <div class="tiles">
-    <div class="tile"><div class="num" id="tNotes">—</div><div class="label">笔记</div></div>
-    <div class="tile"><div class="num" id="tAssets">—</div><div class="label">附件文件</div></div>
-    <div class="tile"><div class="num" id="tTotal">—</div><div class="label">发现问题</div></div>
-    <div class="tile" id="tErrCard"><div class="num" id="tErr">—</div><div class="label">错误（需优先处理）</div></div>
+    <div class="tile">
+      <div class="ticon notes"><svg class="ic" viewBox="0 0 24 24"><path d="M7 3h9l4 4v14H7z"/><path d="M16 3v4h4"/><path d="M10 12h6M10 16h6"/></svg></div>
+      <div><div class="num" id="tNotes">—</div><div class="label">笔记</div></div>
+    </div>
+    <div class="tile">
+      <div class="ticon assets"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 15.5l-4.5-4-4 3.5-3-2.5L4 17"/></svg></div>
+      <div><div class="num" id="tAssets">—</div><div class="label">附件文件</div></div>
+    </div>
+    <div class="tile">
+      <div class="ticon total"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h3l2 12h9"/><path d="M9 12h11l-1.5 6H10"/></svg></div>
+      <div><div class="num" id="tTotal">—</div><div class="label">发现问题</div></div>
+    </div>
+    <div class="tile" id="tErrCard">
+      <div class="ticon err"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18.2v.1"/></svg></div>
+      <div><div class="num" id="tErr">—</div><div class="label">错误（需优先处理）</div></div>
+    </div>
   </div>
 
   <div class="card">
@@ -165,38 +203,45 @@
       <select id="fRule" onchange="render()"><option value="">全部规则</option></select>
       <input id="fText" type="text" placeholder="按文件 / 说明过滤…" oninput="render()">
       <span class="status" id="stat"></span>
+      <details class="helpdd">
+        <summary>❓ 名词解释</summary>
+        <div class="pop" id="legendBody"></div>
+      </details>
     </div>
-  </div>
-
-  <details class="card">
-    <summary>❓ 不懂这些词？断链 / 孤儿笔记 / 未引用附件……点开看白话解释</summary>
-    <div id="legendBody"></div>
-  </details>
-
-  <div class="card">
     <table id="tbl"></table>
     <div class="empty" id="empty" style="display:none">
       <div class="icon">🩺</div>
-      <div>输入知识库路径，点"开始体检"</div>
+      <div>输入知识库路径，点“开始体检”</div>
     </div>
   </div>
   <div class="card" id="detail" style="display:none"></div>
 
   <div class="card">
-    <h3>🤖 agent 修复 · 疑似改名链接</h3>
-    <div class="hint">流程：起草修复方案 → 逐文件勾选批准 → 自动快照 → 应用 → 复扫验证。起草需调用 LLM（config.local.toml 或环境变量配置 API key）。当前支持规则：link/near-miss。</div>
-    <button id="btnDraft" onclick="doDraft()">起草修复方案</button>
+    <h3><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/></svg> agent 修复 · 疑似改名链接</h3>
+    <div class="stepper" id="stepper">
+      <span class="stp" data-s="1"><span class="dotc">1</span>起草</span><span class="sep">›</span>
+      <span class="stp" data-s="2"><span class="dotc">2</span>勾选批准</span><span class="sep">›</span>
+      <span class="stp" data-s="3"><span class="dotc">3</span>快照应用</span><span class="sep">›</span>
+      <span class="stp" data-s="4"><span class="dotc">4</span>复扫验证</span>
+    </div>
+    <div class="hint">起草调用 LLM（需 API key，仅支持“疑似改名”断链）；每份修改都先快照，可随时回滚。</div>
+    <button class="primary" id="btnDraft" onclick="doDraft()">起草修复方案</button>
     <div id="draftArea"></div>
   </div>
 
   <div class="card">
-    <h3>🗂 快照与回滚</h3>
+    <h3><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg> 快照与回滚</h3>
     <div class="hint">每次应用修改前自动保存快照（原文件备份）。回滚 = 把文件恢复到该快照时刻的内容。</div>
     <button onclick="loadSnaps()">查看快照</button>
     <div id="snapArea"></div>
   </div>
 </main>
-<div class="foot">vault-doctor · 扫描只读 · 修复过闸 · 落盘可回滚 —— 本地运行，仅监听 127.0.0.1，不上传任何内容</div>
+<div class="trust">
+  <span class="chip">🔒 扫描只读，不改文件</span>
+  <span class="chip">🛡 修复必须经你批准</span>
+  <span class="chip">↩ 落盘自动快照，可回滚</span>
+  <span class="chip">🏠 本地运行 127.0.0.1，不上传</span>
+</div>
 <script>
 "use strict";
 let SCAN = null;        // {notes, assets, elapsed, violations:[...]}
@@ -230,23 +275,22 @@ function renderLegend() {
   const body = $("legendBody"); if (!body) return;
   body.innerHTML = "";
   const h1 = document.createElement("div");
-  h1.textContent = "三个严重度"; h1.style.fontWeight = "600"; h1.style.margin = "8px 0 4px"; body.appendChild(h1);
+  h1.className = "legend-h"; h1.textContent = "三个严重度"; body.appendChild(h1);
   for (const [sev, meta] of Object.entries(SEV)) {
     const row = document.createElement("div"); row.className = "legend-row";
     const b = document.createElement("b");
-    const pill = document.createElement("span"); pill.className = "pill " + sev; pill.textContent = meta.zh;
-    b.append(pill, " " + sev);
+    const dot = document.createElement("span"); dot.className = "dot " + sev;
+    b.append(dot, " " + meta.zh + " " + sev);
     const sp = document.createElement("span"); sp.textContent = meta.hint;
     row.append(b, sp); body.appendChild(row);
   }
   const h2 = document.createElement("div");
-  h2.textContent = "本库生效的规则"; h2.style.fontWeight = "600"; h2.style.margin = "12px 0 4px";
-  body.appendChild(h2);
+  h2.className = "legend-h"; h2.textContent = "本库生效的规则"; body.appendChild(h2);
   for (const [rid, r] of Object.entries(RULES)) {
     const row = document.createElement("div"); row.className = "legend-row";
     const b = document.createElement("b");
-    const pill = document.createElement("span"); pill.className = "pill " + r.severity; pill.textContent = r.label;
-    b.append(pill, " " + rid);
+    const dot = document.createElement("span"); dot.className = "dot " + r.severity;
+    b.append(dot, " " + r.label + " " + rid);
     const sp = document.createElement("span"); sp.textContent = r.description;
     row.append(b, sp); body.appendChild(row);
   }
@@ -306,37 +350,47 @@ function render() {
   empty.style.display = "none";
 
   const thead = tbl.createTHead(), hr = thead.insertRow();
-  ["严重度", "规则", "位置", "说明"].forEach(t => { const th = document.createElement("th"); th.textContent = t; hr.appendChild(th); });
+  ["严重度", "规则", "行", "说明"].forEach(t => { const th = document.createElement("th"); th.textContent = t; hr.appendChild(th); });
   const tbody = tbl.createTBody();
-  for (const v of rows.slice(0, 200)) {
-    const tr = tbody.insertRow(); tr.className = "row";
 
-    const td0 = tr.insertCell();
-    const sevPill = document.createElement("span");
-    sevPill.className = "pill " + v.severity;
-    sevPill.textContent = sevZh(v.severity);
-    sevPill.title = v.severity + "：" + (SEV[v.severity] || {hint: ""}).hint;
-    td0.appendChild(sevPill);
-
-    const td1 = tr.insertCell();
-    const name = document.createElement("span");
-    name.style.fontWeight = "600";
-    name.textContent = ruleLabel(v.rule_id);
-    if (RULES[v.rule_id]) name.title = RULES[v.rule_id].description;  // 悬停即出白话解释
-    const rid = document.createElement("span");
-    rid.className = "sub"; rid.textContent = v.rule_id;
-    td1.append(name, rid);
-
-    const td2 = tr.insertCell(); td2.className = "pos";
-    td2.textContent = v.file + (v.line ? ":" + v.line : "");
-    td2.title = v.file + (v.line ? ":" + v.line : "");
-
-    const td3 = tr.insertCell(); td3.textContent = v.message;
-    tr.onclick = () => showDetail(v);
+  // 按文件分组：文件路径只出现一次（组头行），行内不再重复长路径
+  const shown = rows.slice(0, 200);
+  const groups = new Map();
+  for (const v of shown) {
+    if (!groups.has(v.file)) groups.set(v.file, []);
+    groups.get(v.file).push(v);
   }
-  const errs = SCAN.violations.filter(v => v.severity === "error").length;
-  setStat(`显示 ${Math.min(rows.length, 200)}/${SCAN.violations.length} 条 · ${SCAN.elapsed}s` +
-    (rows.length > 200 ? "（仅前 200）" : ""), errs ? "err" : "");
+  for (const [file, vs] of groups) {
+    const gh = tbody.insertRow(); gh.className = "grp";
+    const ghc = gh.insertCell(); ghc.colSpan = 4;
+    const path = document.createElement("span"); path.className = "grp-path"; path.textContent = file;
+    const cnt = document.createElement("span"); cnt.className = "grp-cnt"; cnt.textContent = vs.length + " 条";
+    ghc.append(path, cnt);
+
+    for (const v of vs) {
+      const tr = tbody.insertRow(); tr.className = "row";
+
+      const td0 = tr.insertCell();
+      const sev = document.createElement("span"); sev.className = "sevcell " + v.severity;
+      const dot = document.createElement("span"); dot.className = "dot " + v.severity;
+      sev.append(dot, sevZh(v.severity));
+      sev.title = v.severity + "：" + (SEV[v.severity] || {hint: ""}).hint;
+      td0.appendChild(sev);
+
+      const td1 = tr.insertCell();
+      const name = document.createElement("span"); name.className = "rname"; name.textContent = ruleLabel(v.rule_id);
+      if (RULES[v.rule_id]) name.title = RULES[v.rule_id].description;  // 悬停即出白话解释
+      const rid = document.createElement("span"); rid.className = "sub"; rid.textContent = v.rule_id;
+      td1.append(name, rid);
+
+      const td2 = tr.insertCell(); td2.className = "linecol"; td2.textContent = v.line ? "行 " + v.line : "—";
+
+      const td3 = tr.insertCell(); td3.textContent = v.message;
+      tr.onclick = () => showDetail(v);
+    }
+  }
+  setStat(`显示 ${shown.length} / ${SCAN.violations.length} 条 · ${SCAN.elapsed}s` +
+    (rows.length > 200 ? "（仅前 200）" : ""));
 }
 
 function showDetail(v) {
@@ -371,10 +425,21 @@ function showDetail(v) {
   bar.append(btn, out); d.appendChild(bar);
 }
 
+/* ---- 修复流程步骤条 ---- */
+function setStepper(stage) {
+  const el = $("stepper");
+  el.querySelectorAll(".stp").forEach(n => n.classList.remove("done", "act"));
+  const plan = {drafted: {done: [1], act: 2}, applied: {done: [1, 2, 3, 4]}}[stage];
+  if (!plan) return;
+  plan.done.forEach(i => el.querySelector(`.stp[data-s="${i}"]`).classList.add("done"));
+  if (plan.act) el.querySelector(`.stp[data-s="${plan.act}"]`).classList.add("act");
+}
+
 async function doDraft() {
   $("btnDraft").disabled = true; $("draftArea").textContent = "起草中（调用 LLM）…";
   try {
     DRAFT = await api("/api/fix/draft", {vault: vaultPath()});
+    setStepper("drafted");
     renderDraft();
   } catch (e) { $("draftArea").textContent = "❌ " + e.message; }
   $("btnDraft").disabled = false;
@@ -464,6 +529,7 @@ async function doApply() {
   $("draftArea").textContent = "应用中…";
   try {
     const r = await api("/api/fix/apply", {draft_id: DRAFT.draft_id, approved});
+    setStepper("applied");
     const div = $("draftArea"); div.innerHTML = "";
     const mk = (txt, cls) => { const p = document.createElement("div"); p.className = cls; p.textContent = txt; div.appendChild(p); };
     mk(`✅ 已应用 ${r.applied_files.length} 个文件 · 快照 ${r.snapshot_id}`, "ok");
