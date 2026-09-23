@@ -1,8 +1,11 @@
-"""FastMCP server（DESIGN 6.5）：把只读图谱工具暴露给 Claude Code / Cursor 等 agent。
+"""MCP server（DESIGN 6.5）：把只读图谱工具暴露给 Claude Code / Cursor 等 agent。
 
 分层：tools.py 是纯引擎函数（无 mcp 依赖，直接可测）；本模块懒加载 mcp SDK
 （可选依赖 vault-doctor[mcp]）。stdio 传输，只读工具，不暴露任何写路径——
 外层 harness 自有权限系统，写操作默认禁用。
+
+SDK 版本兼容：1.x 是 FastMCP，2.x 改名为 MCPServer（导入路径与类名都变了，
+@tool 装饰器与 run(transport="stdio") 保持一致）——两条路径都支持。
 """
 from __future__ import annotations
 
@@ -18,11 +21,24 @@ _INSTRUCTIONS = (
 )
 
 
-def build_server(vault: Path):
-    """构造 FastMCP 实例（注入 vault 路径，工具闭包持有）。测试可断言工具清单。"""
-    from mcp.server.fastmcp import FastMCP
+def _server_class():
+    try:
+        from mcp.server.fastmcp import FastMCP  # SDK 1.x
 
-    mcp = FastMCP("vault-doctor", instructions=_INSTRUCTIONS)
+        return FastMCP
+    except ImportError:
+        from mcp.server.mcpserver import MCPServer  # SDK 2.x：FastMCP 改名
+
+        return MCPServer
+
+
+def build_server(vault: Path):
+    """构造 MCP server（注入 vault 路径，工具闭包持有）。--check 自检与测试共用。"""
+    cls = _server_class()
+    try:
+        mcp = cls("vault-doctor", instructions=_INSTRUCTIONS)
+    except TypeError:
+        mcp = cls("vault-doctor")  # 构造签名变化时的兜底
 
     @mcp.tool()
     def scan_vault(rule_id: str = "") -> dict:
@@ -55,4 +71,4 @@ def build_server(vault: Path):
 
 def serve(vault: Path) -> None:
     """启动 stdio MCP server（阻塞，供 MCP 客户端拉起）。"""
-    build_server(vault).run()
+    build_server(vault).run(transport="stdio")

@@ -77,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
         "mcp", help="以 MCP server 运行（stdio 只读图谱工具，供 Claude Code / Cursor 等 agent 调用）"
     )
     mcp_p.add_argument("vault", nargs="?", default=".", help="知识库路径（默认当前目录）")
+    mcp_p.add_argument("--check", action="store_true", help="自检：构造 server 并列出工具，不进入 stdio 循环")
     return parser
 
 
