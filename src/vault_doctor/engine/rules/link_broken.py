@@ -17,7 +17,7 @@ def _detect(ctx: RuleContext) -> list[Violation]:
             severity=RULE.severity,
             file=source,
             line=line,
-            message=f"断链：{_DISPLAY.get(kind, '{t}').format(t=target_raw)} 解析不到库内文件",
+            message=f"断链：{_DISPLAY.get(kind, '{t}').format(t=target_raw)} 指向的文件不存在，点开会落空",
             detail={"target_raw": target_raw, "kind": kind},
         )
         for source, target_raw, line, kind in rows
@@ -29,6 +29,6 @@ RULE = Rule(
     severity="error",
     autofixable=False,
     label="断链",
-    description="检测 [[wikilink]] 与 [md](相对路径) 中无法解析到库内文件的链接",
+    description="链接指向的文件不存在，点开会落空——多半是文件被删除、移动或改名后，笔记里的引用没跟上",
     detect=_detect,
 )

@@ -15,7 +15,7 @@ def _detect(ctx: RuleContext) -> list[Violation]:
                     severity=RULE.severity,
                     file=path,
                     line=None,
-                    message="未引用资产：没有任何笔记链接到它",
+                    message="未引用附件：没有任何笔记引用它",
                     detail={},
                 )
             )
@@ -26,7 +26,7 @@ RULE = Rule(
     id="asset/unreferenced",
     severity="warn",
     autofixable=False,
-    label="未引用资产",
-    description="检测从未被引用的图片等资产文件",
+    label="未引用附件",
+    description="没有任何笔记引用的图片等附件——可能是删笔记时留下的遗留文件，白占空间，可考虑清理",
     detect=_detect,
 )

@@ -149,7 +149,7 @@
 <main>
   <div class="tiles">
     <div class="tile"><div class="num" id="tNotes">—</div><div class="label">笔记</div></div>
-    <div class="tile"><div class="num" id="tAssets">—</div><div class="label">资产文件</div></div>
+    <div class="tile"><div class="num" id="tAssets">—</div><div class="label">附件文件</div></div>
     <div class="tile"><div class="num" id="tTotal">—</div><div class="label">发现问题</div></div>
     <div class="tile" id="tErrCard"><div class="num" id="tErr">—</div><div class="label">错误（需优先处理）</div></div>
   </div>
@@ -169,7 +169,7 @@
   </div>
 
   <details class="card">
-    <summary>❓ 严重度和规则是什么意思？</summary>
+    <summary>❓ 不懂这些词？断链 / 孤儿笔记 / 未引用附件……点开看白话解释</summary>
     <div id="legendBody"></div>
   </details>
 
@@ -322,6 +322,7 @@ function render() {
     const name = document.createElement("span");
     name.style.fontWeight = "600";
     name.textContent = ruleLabel(v.rule_id);
+    if (RULES[v.rule_id]) name.title = RULES[v.rule_id].description;  // 悬停即出白话解释
     const rid = document.createElement("span");
     rid.className = "sub"; rid.textContent = v.rule_id;
     td1.append(name, rid);

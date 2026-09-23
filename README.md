@@ -12,11 +12,11 @@
 
 ```text
 $ vault-doctor scan .
-669 篇笔记 · 175 个资产 · 索引耗时 0.65s
-error  link/broken         数学/复习.md:4       断链：[[概率论笔记]] 解析不到库内文件
-warn   link/near-miss      数学/复习.md:4       疑似改名：「概率论笔记」最接近的现有文件是 数学/概率论.md（编辑距离 2）
-warn   note/orphan         misc/ideas.md        孤儿笔记：无入链也无出链
-warn   asset/unreferenced  assets/old.png       未引用资产：没有任何笔记链接到它
+669 篇笔记 · 175 个附件 · 索引耗时 0.65s
+error  link/broken         数学/复习.md:4       断链：[[概率论笔记]] 指向的文件不存在，点开会落空
+warn   link/near-miss      数学/复习.md:4       疑似改名：「概率论笔记」和现有文件 数学/概率论.md 只差 2 个字，多半是改名后忘改链接
+warn   note/orphan         misc/ideas.md        孤儿笔记：没有任何笔记链接它，它也没链接别人
+warn   asset/unreferenced  assets/old.png       未引用附件：没有任何笔记引用它
 共 17 条：7 error · 10 warn · 0 info
 ```
 
@@ -69,10 +69,10 @@ Grok/grok-build-main
 
 | 规则 | 严重度 | 说明 |
 |---|---|---|
-| `link/broken` | error | `[[wikilink]]` / `[md](相对路径)` 解析不到库内文件；自动归一化 `.\images\x.png` 这类 Windows 反斜杠写法 |
-| `link/near-miss` | warn | 断链疑似改名/笔误：给出最接近的现有文件与编辑距离 |
-| `note/orphan` | warn | 无入链也无出链的笔记 |
-| `asset/unreferenced` | warn | 从未被任何笔记引用的图片 / PDF 等附件 |
+| `link/broken` | error | 链接指向的文件不存在，点开会落空；能识别 `[[wikilink]]`、`[md](相对路径)` 与 `.\images\x.png` 这类 Windows 写法 |
+| `link/near-miss` | warn | 断链目标和某个现有文件名只差一两个字——改名/笔误的链接，给出最像的候选（`fix` 可自动修复） |
+| `note/orphan` | warn | 没有任何笔记链接它、它也不链接别人的笔记 |
+| `asset/unreferenced` | warn | 没有任何笔记引用的图片 / PDF 等附件 |
 
 ## Plugins / 插件规则
 
@@ -116,7 +116,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 | 外部 URL 检查 | ✗（M1 集成 lychee） | ✓ | ✗ | 部分 |
 | 格式修复 | ✗（互补，交给它） | ✗ | ✓ `--fix` | ✓ |
 | wikilink 图谱解析 | ✓ | ✗ | ✗ | ✓（锁编辑器） |
-| 孤儿 / 未引用资产 | ✓ | ✗ | ✗ | 部分 |
+| 孤儿 / 未引用附件 | ✓ | ✗ | ✗ | 部分 |
 | near-miss 改名检测 | ✓ | ✗ | ✗ | ✗ |
 | 独立 CLI / 任意编辑器 | ✓ | ✓ | ✓ | ✗ |
 | Windows 反斜杠路径归一 | ✓ | ✗ | ✗ | — |

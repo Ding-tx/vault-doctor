@@ -26,7 +26,7 @@ def _detect(ctx: RuleContext) -> list[Violation]:
                 severity=RULE.severity,
                 file=source,
                 line=line,
-                message=f"疑似改名：「{target_raw}」最接近的现有文件是 {best_path}（编辑距离 {best_distance}）",
+                message=f"疑似改名：「{target_raw}」和现有文件 {best_path} 只差 {best_distance} 个字，多半是改名后忘改链接",
                 detail={"target_raw": target_raw, "candidates": candidates},
             )
         )
@@ -38,6 +38,6 @@ RULE = Rule(
     severity="warn",
     autofixable=False,
     label="疑似改名",
-    description="断链目标与现有文件名编辑距离 ≤ 2 时，提示改名/笔误候选",
+    description="这条断链的目标和某个现有文件名只差一两个字——多半是那个文件改过名或写错了一个字，工具会给出最像的候选",
     detect=_detect,
 )

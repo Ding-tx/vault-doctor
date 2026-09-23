@@ -86,7 +86,7 @@ def render_table(
 ) -> None:
     console = console or Console()
     console.print(f"[bold]vault-doctor[/bold] · 扫描 [underline]{escape(str(vault))}[/underline]")
-    console.print(f"{notes} 篇笔记 · {assets} 个资产 · 索引耗时 {elapsed:.2f}s")
+    console.print(f"{notes} 篇笔记 · {assets} 个附件 · 索引耗时 {elapsed:.2f}s")
 
     if not violations:
         console.print("[green]未发现违规[/green]")

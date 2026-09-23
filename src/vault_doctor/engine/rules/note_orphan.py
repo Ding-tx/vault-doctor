@@ -15,7 +15,7 @@ def _detect(ctx: RuleContext) -> list[Violation]:
                     severity=RULE.severity,
                     file=path,
                     line=None,
-                    message="孤儿笔记：无入链也无出链",
+                    message="孤儿笔记：没有任何笔记链接它，它也没链接别人",
                     detail={},
                 )
             )
@@ -27,6 +27,6 @@ RULE = Rule(
     severity="warn",
     autofixable=False,
     label="孤儿笔记",
-    description="检测既没有被链接也没有链接别人的笔记",
+    description="没有任何笔记链接它、它也不链接别人——写完就孤零零躺在库里，很容易永远想不起来，建议归档或补几个链接",
     detect=_detect,
 )
