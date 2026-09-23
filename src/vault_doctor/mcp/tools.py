@@ -21,12 +21,11 @@ def _require_vault(vault) -> Path:
     return v.resolve()
 
 
-def scan_vault(vault, rule_id: str | None = None) -> dict:
-    """全库体检（增量索引后跑规则）。返回 {notes, assets, elapsed, violations}。
+def scan_vault(vault, rule_id: str | None = None, limit: int = 0) -> dict:
+    """全库体检（增量索引后跑规则）。返回 {notes, assets, elapsed, violation_count, violations}。
 
-    rule_id 可选过滤，如 "link/broken"。violations 每条含
-    rule_id/severity/file/line/message/detail（near-miss 的 detail.candidates
-    带改名候选与距离）。"""
+    rule_id 可选过滤，如 "link/broken"。大库建议先 limit=20 概览——violations
+    只带前 N 条，violation_count 始终是全量数（limit<=0 不截断）。"""
     v = _require_vault(vault)
     stats = index_vault(v)
     conn = connect(default_db_path(v))
@@ -36,11 +35,17 @@ def scan_vault(vault, rule_id: str | None = None) -> dict:
         violations = run_rules(RuleContext(conn), [rule_id] if rule_id else None)
     finally:
         conn.close()
+    violations = [x.model_dump() for x in violations]
+    total = len(violations)
+    if limit > 0:
+        violations = violations[:limit]
     return {
         "notes": notes,
         "assets": assets,
         "elapsed": round(stats.elapsed, 2),
-        "violations": [x.model_dump() for x in violations],
+        "violation_count": total,
+        "violations": violations,
+        "truncated": len(violations) < total,
     }
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from vault_doctor import __version__
 from vault_doctor.mcp import tools as T
 
 _INSTRUCTIONS = (
@@ -36,15 +37,18 @@ def build_server(vault: Path):
     """构造 MCP server（注入 vault 路径，工具闭包持有）。--check 自检与测试共用。"""
     cls = _server_class()
     try:
-        mcp = cls("vault-doctor", instructions=_INSTRUCTIONS)
+        mcp = cls("vault-doctor", instructions=_INSTRUCTIONS, version=__version__)
     except TypeError:
-        mcp = cls("vault-doctor")  # 构造签名变化时的兜底
+        try:
+            mcp = cls("vault-doctor", instructions=_INSTRUCTIONS)
+        except TypeError:
+            mcp = cls("vault-doctor")  # 构造签名变化时的兜底
 
     @mcp.tool()
-    def scan_vault(rule_id: str = "") -> dict:
+    def scan_vault(rule_id: str = "", limit: int = 0) -> dict:
         """全库体检：返回笔记数、附件数与违规清单（断链/疑似改名/孤儿笔记/未引用附件）。
-        rule_id 可选过滤，如 "link/broken"。"""
-        return T.scan_vault(vault, rule_id or None)
+        rule_id 可选过滤；大库建议 limit=20 先概览——violation_count 给全量数，violations 只带前 N 条。"""
+        return T.scan_vault(vault, rule_id or None, limit)
 
     @mcp.tool()
     def outgoing_links(path: str) -> list[dict]:

@@ -15,6 +15,11 @@ def test_scan_vault_and_rule_filter(tmp_path: Path):
 
     broken = T.scan_vault(tmp_path, "link/broken")
     assert len(broken["violations"]) == 7
+    assert broken["violation_count"] == 7 and not broken["truncated"]
+    # 大库概览模式：violations 截断，violation_count 仍是全量数
+    head = T.scan_vault(tmp_path, "link/broken", limit=3)
+    assert len(head["violations"]) == 3
+    assert head["violation_count"] == 7 and head["truncated"]
     assert all(v["rule_id"] == "link/broken" for v in broken["violations"])
     # near-miss 违规的 detail 带改名候选（外部 agent 据此提议修复）
     near = T.scan_vault(tmp_path, "link/near-miss")
