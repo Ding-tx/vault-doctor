@@ -62,3 +62,33 @@ def _from_toml(path: Path) -> LLMConfig:
         raise ConfigError(f"{path} 缺少 [llm] 表或 llm.api_key 字段")
     fields = LLMConfig.model_fields
     return LLMConfig(**{k: section[k] for k in fields if k in section})
+
+
+def write_llm_config(path: Path, cfg: LLMConfig) -> Path:
+    """UI 设置卡保存入口：写/更新 config.local.toml 的 [llm] 表。
+
+    保留既有 [llm] 里的 timeout_seconds / max_session_tokens（若已设置）；
+    该文件由本工具管理（模板见 config.example.toml），重写不保留未知字段。
+    """
+    data: dict = {}
+    if path.is_file():
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            data = {}  # 坏文件直接重建
+    llm = dict(data.get("llm") or {})
+    llm.update({"base_url": cfg.base_url, "api_key": cfg.api_key, "model": cfg.model})
+
+    def _toml_str(s: str) -> str:
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+    lines = [
+        "# vault-doctor 本地配置——由 UI 设置卡生成/更新；含密钥，已被 *.local.toml 忽略规则覆盖，请勿提交",
+        "[llm]",
+    ]
+    for key in ("base_url", "api_key", "model", "timeout_seconds", "max_session_tokens"):
+        if key in llm and llm[key] is not None:
+            value = llm[key]
+            lines.append(f"{key} = {value if isinstance(value, (int, float)) else _toml_str(str(value))}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path

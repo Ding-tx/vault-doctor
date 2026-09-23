@@ -22,7 +22,7 @@ from vault_doctor import __version__
 from vault_doctor.agent.drafter import draft_file_patches, merge_usage
 from vault_doctor.cli.why import SYSTEM_PROMPT as WHY_PROMPT
 from vault_doctor.cli.why import build_user_prompt
-from vault_doctor.config import ConfigError, load_llm_config
+from vault_doctor.config import ConfigError, LLMConfig, load_llm_config, write_llm_config
 from vault_doctor.engine.graph import LinkResolver, extract_links
 from vault_doctor.engine.indexer import connect, default_db_path, index_vault
 from vault_doctor.engine.patches import apply_patches, apply_to_text
@@ -30,7 +30,7 @@ from vault_doctor.engine.rules import REGISTRY, run_rules
 from vault_doctor.engine.rules.base import RuleContext
 from vault_doctor.kernel.transcript import Transcript, new_session_id
 from vault_doctor.ledger.budget import BudgetExceeded, TokenLedger
-from vault_doctor.llm.client import LLMClient, LLMError
+from vault_doctor.llm.client import LLMClient, LLMError, assert_safe_url
 from vault_doctor.policy.snapshot import SnapshotError, create_snapshot, list_snapshots_detail, rollback
 
 UI_RULE = "link/near-miss"
@@ -51,6 +51,52 @@ def make_client(cfg):
     """测试注入点：替换此函数即可让 UI 全链路走假客户端。
     返回对象需提供 LLMClient 同款接口：chat(system, user) -> (str, dict) 与 close()。"""
     return LLMClient(cfg)
+
+
+# ---- 模型设置（UI 填 key）：状态打码、保存落 config.local.toml、真调一次测连通 ----
+
+def _config_status() -> dict:
+    """当前配置状态；api_key 只出打码形式，完整密钥永不过 API。"""
+    try:
+        cfg = load_llm_config(None)
+    except ConfigError:
+        return {"configured": False}
+    key = cfg.api_key
+    masked = (key[:3] + "***" + key[-4:]) if len(key) > 8 else "***"
+    return {"configured": True, "base_url": cfg.base_url, "model": cfg.model, "api_key_masked": masked}
+
+
+def _cfg_from_body(body: dict) -> LLMConfig:
+    base_url = str(body.get("base_url") or "").strip()
+    model = str(body.get("model") or "").strip()
+    api_key = str(body.get("api_key") or "").strip()
+    if not (base_url and model):
+        raise ApiError("base_url 与 model 不能为空")
+    if not api_key:
+        # key 留空 = 只改地址/模型，沿用已保存的密钥
+        try:
+            api_key = load_llm_config(None).api_key
+        except ConfigError:
+            raise ApiError("api_key 为空，且本地没有已保存的密钥")
+    assert_safe_url(base_url)  # SSRF 防线与正式调用同一条（LLMError → 400）
+    return LLMConfig(base_url=base_url, api_key=api_key, model=model)
+
+
+def _config_save(body: dict) -> dict:
+    cfg = _cfg_from_body(body)
+    path = Path("config.local.toml").resolve()
+    write_llm_config(path, cfg)
+    return {"saved": True, "path": str(path)}
+
+
+def _config_test(body: dict) -> dict:
+    cfg = _cfg_from_body(body)
+    client = make_client(cfg)
+    try:
+        content, usage = client.chat("你是连通性测试。无论收到什么，只回复两个字符：OK", "ping")
+    finally:
+        client.close()
+    return {"ok": True, "reply": (content or "").strip()[:40], "usage": usage}
 
 
 def _resolve_vault(raw) -> Path:
@@ -320,6 +366,9 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/rules":
             self._guard(_rules_payload)
             return
+        if parsed.path == "/api/config":
+            self._guard(_config_status)
+            return
         if parsed.path == "/api/snapshots":
             qs = parse_qs(parsed.query)
             self._guard(lambda: {"snapshots": list(reversed(list_snapshots_detail(self._vault(qs.get("vault", [None])[0]))))})
@@ -336,6 +385,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": str(exc)}, exc.status)
             return
 
+        if path == "/api/config":
+            self._guard(lambda: _config_save(body))
+            return
+        if path == "/api/config/test":
+            self._guard(lambda: _config_test(body))
+            return
         if path == "/api/why":
             def run():
                 vault = self._vault(body.get("vault"))

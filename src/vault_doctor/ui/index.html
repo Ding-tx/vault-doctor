@@ -147,6 +147,11 @@
 
   .ok { color:var(--green); font-weight:600; } .err { color:var(--red-deep); }
 
+  /* ---- 模型设置 ---- */
+  .cfggrid { display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+  .cfggrid select { min-width:150px; }
+  .cfggrid input { min-width:220px; padding:6px 11px; font-size:13px; }
+
   /* ---- 信任条 ---- */
   .trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding:14px 0 44px; }
   .trust .chip { display:inline-flex; gap:6px; align-items:center; background:#fff; border:1px solid var(--line);
@@ -217,6 +222,20 @@
   <div class="card" id="detail" style="display:none"></div>
 
   <div class="card">
+    <h3>🔑 模型与 API key</h3>
+    <div class="hint">“问 AI”与修复起草需要调用大模型。选厂商 → 粘贴你自己的 API key → 测试连接 → 保存。密钥只存本机 config.local.toml，不会上传；key 留空保存 = 只改地址/模型、沿用已存密钥。</div>
+    <div class="cfggrid">
+      <select id="cProv" onchange="onProv()"></select>
+      <input id="cBase" type="text" placeholder="API 地址（base_url）">
+      <input id="cModel" type="text" placeholder="模型名">
+      <input id="cKey" type="password" placeholder="API key（sk-…）">
+      <button id="cTest" onclick="doCfgTest()">测试连接</button>
+      <button class="primary" id="cSave" onclick="doCfgSave()">保存</button>
+      <span class="status" id="cfgStat"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <h3><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/></svg> agent 修复 · 疑似改名链接</h3>
     <div class="stepper" id="stepper">
       <span class="stp" data-s="1"><span class="dotc">1</span>起草</span><span class="sep">›</span>
@@ -224,7 +243,7 @@
       <span class="stp" data-s="3"><span class="dotc">3</span>快照应用</span><span class="sep">›</span>
       <span class="stp" data-s="4"><span class="dotc">4</span>复扫验证</span>
     </div>
-    <div class="hint">起草调用 LLM（需 API key，仅支持“疑似改名”断链）；每份修改都先快照，可随时回滚。</div>
+    <div class="hint">起草调用 LLM（未配置时在上方“模型与 API key”填写；仅支持“疑似改名”断链）；每份修改都先快照，可随时回滚。</div>
     <button class="primary" id="btnDraft" onclick="doDraft()">起草修复方案</button>
     <div id="draftArea"></div>
   </div>
@@ -258,6 +277,68 @@ const SEV = {
 const $ = id => document.getElementById(id);
 const sevZh = s => (SEV[s] || {zh: s}).zh;
 const ruleLabel = rid => (RULES[rid] ? RULES[rid].label : rid);
+
+// 厂商预设：只负责填 base_url 与常见默认模型——模型名以你账号开通的为准，均可改
+const PROVIDERS = [
+  {name: "智谱 GLM", base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash"},
+  {name: "DeepSeek", base: "https://api.deepseek.com", model: "deepseek-chat"},
+  {name: "Kimi（月之暗面）", base: "https://api.moonshot.cn/v1", model: "kimi-k2-0905-preview"},
+  {name: "通义千问（阿里）", base: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus"},
+  {name: "豆包（火山方舟）", base: "https://ark.cn-beijing.volces.com/api/v3", model: "", hint: "填你的模型名或接入点 ID（ep-…）"},
+  {name: "MiniMax", base: "https://api.minimaxi.com/v1", model: "MiniMax-Text-01"},
+  {name: "硅基流动 SiliconFlow", base: "https://api.siliconflow.cn/v1", model: "Qwen/Qwen2.5-7B-Instruct"},
+  {name: "OpenAI", base: "https://api.openai.com/v1", model: "gpt-4o-mini"},
+  {name: "自定义…", base: "", model: ""},
+];
+
+function onProv() {
+  const p = PROVIDERS[$("cProv").selectedIndex] || {};
+  $("cBase").value = p.base || "";
+  $("cModel").value = p.model || "";
+  $("cModel").placeholder = p.hint || "模型名";
+}
+
+async function loadCfg() {
+  $("cProv").innerHTML = "";
+  PROVIDERS.forEach(p => $("cProv").append(new Option(p.name)));
+  onProv();
+  try {
+    const s = await api("/api/config");
+    if (s.configured) {
+      $("cfgStat").textContent = `✓ 已配置：${s.model}（key ${s.api_key_masked}）`;
+      $("cfgStat").className = "status ok";
+      $("cBase").value = s.base_url;
+      $("cModel").value = s.model;
+      $("cKey").placeholder = "已保存，留空则沿用";
+      const hit = PROVIDERS.findIndex(p => p.base === s.base_url);
+      $("cProv").selectedIndex = hit >= 0 ? hit : PROVIDERS.length - 1;
+    } else {
+      $("cfgStat").textContent = "未配置——填好并保存后可用 AI 功能";
+    }
+  } catch (e) { /* 状态卡失败不阻塞主流程 */ }
+}
+
+async function doCfgTest() {
+  const stat = $("cfgStat");
+  stat.textContent = "连接中…"; stat.className = "status";
+  try {
+    const r = await api("/api/config/test", {base_url: $("cBase").value.trim(), model: $("cModel").value.trim(), api_key: $("cKey").value.trim()});
+    stat.textContent = `✓ 连通：模型回复「${r.reply}」（tokens ${r.usage.prompt_tokens || 0}+${r.usage.completion_tokens || 0}）`;
+    stat.className = "status ok";
+  } catch (e) { stat.textContent = "✗ " + e.message; stat.className = "status err"; }
+}
+
+async function doCfgSave() {
+  const stat = $("cfgStat");
+  try {
+    const r = await api("/api/config", {base_url: $("cBase").value.trim(), model: $("cModel").value.trim(), api_key: $("cKey").value.trim()});
+    $("cKey").value = "";
+    $("cKey").placeholder = "已保存，留空则沿用";
+    stat.textContent = `✓ 已保存到 ${r.path}`;
+    stat.className = "status ok";
+    loadCfg();
+  } catch (e) { stat.textContent = "✗ " + e.message; stat.className = "status err"; }
+}
 
 function setStat(msg, cls) { $("stat").textContent = msg; $("stat").className = "status " + (cls || ""); }
 
@@ -573,8 +654,10 @@ async function loadSnaps() {
   } catch (e) { area.textContent = "❌ " + e.message; }
 }
 
-// 先取规则目录再首扫：表格/筛选器/图例一次到位，不闪英文 id
-loadRules().finally(() => doScan());
+// 先取规则目录与配置状态再首扫：表格/筛选器/图例一次到位，不闪英文 id
+loadRules();
+loadCfg();
+doScan();
 </script>
 </body>
 </html>

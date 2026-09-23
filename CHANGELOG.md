@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased（v0.4.1 候选）
+
+- **Web UI"模型与 API key"设置卡**：国产厂商预设（智谱 GLM / DeepSeek / Kimi / 通义千问 / 豆包 / MiniMax / 硅基流动）+ OpenAI / 自定义，选厂商自动填地址与默认模型（均可改）；**测试连接**真调一次最小请求验证；保存写入 `config.local.toml`——key 只存本机、页面仅打码显示（`sk-***abcd`）、留空保存 = 只改地址/模型沿用已存密钥；base_url 过 SSRF 校验（拒绝内网/环回）
+
 ## v0.4.0 (2026-09-23)
 
 - **MCP server 模式（M3-A）**：`vault-doctor mcp <vault>` 以 stdio 启动只读 MCP server（Claude Code / Cursor / ZCode 等 agent 即插即用）。五个只读图谱工具：`scan_vault`（大库支持 `limit` 概览，`violation_count` 给全量数）、`outgoing_links` / `backlinks`、`near_miss_candidates`、`search_notes`（中文子串）。可选依赖 `pip install "vault-doctor[mcp]"`；兼容 MCP SDK 1.x/2.x；`--check` 一键自检；**不含任何写工具**——修改永远走 `fix` 的人工闸门

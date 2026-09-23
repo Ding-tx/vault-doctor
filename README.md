@@ -54,7 +54,11 @@ vault-doctor mcp .                         # 只读 MCP server（stdio，供 Cla
 
 **Web UI**：`vault-doctor ui <vault>` 一条命令启动本地图形界面——扫描结果表格与筛选、点开违规看详情、一键“为什么？”调 LLM 解释、修复卡片逐文件勾选批准（diff 预览 + 快照 + 复扫验证）、快照列表一键回滚。零新增依赖，仅绑定 127.0.0.1。
 
-**`why` 需要 API key**（唯一需要密钥的命令）：复制 `config.example.toml` 为 `config.local.toml` 并填入 `api_key`（默认智谱 GLM，任何 OpenAI 兼容端点均可；该文件已被 gitignore，密钥不入库）。也支持环境变量 `VAULT_DOCTOR_API_KEY`。
+**AI 功能需要 API key**（`why` / `fix` / UI 的 AI 按钮；任何 OpenAI 兼容端点均可）。配置三选一：
+
+1. **最简单：Web UI 的“模型与 API key”卡片**——选厂商（智谱 GLM / DeepSeek / Kimi / 通义千问 / 豆包 / MiniMax / 硅基流动 / OpenAI / 自定义）→ 粘贴 key → 测试连接 → 保存（写入 `config.local.toml`；key 只存本机，页面上仅打码显示）；
+2. 复制 `config.example.toml` 为 `config.local.toml` 手填（该文件已被 gitignore，密钥不入库）；
+3. 环境变量 `VAULT_DOCTOR_API_KEY`（可选 `VAULT_DOCTOR_BASE_URL` / `VAULT_DOCTOR_MODEL`）。
 
 **Exit codes / 退出码**（CI 友好）：`0` 干净 · `1` 存在 error 级违规 · `2` 用法/路径错误。
 

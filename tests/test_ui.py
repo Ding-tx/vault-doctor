@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from vault_doctor.config import ConfigError, LLMConfig
+from vault_doctor.config import ConfigError, LLMConfig, load_llm_config
+from vault_doctor.llm.client import LLMError
 from vault_doctor.ui import server as ui
 from tests.fixtures import build_vault
 from tests.test_fixer import DispatchClient
@@ -118,3 +119,59 @@ def test_why_without_config_raises(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)  # cwd 无 config.local.toml
     with pytest.raises(ConfigError):
         ui._why(tmp_path, "link/near-miss", "计算机/学习计划.md", 3)
+
+
+class _PingClient:
+    """连通性测试假客户端：chat/close 最小实现。"""
+
+    def chat(self, system, user):
+        return "OK", {"prompt_tokens": 1, "completion_tokens": 1}
+
+    def close(self):
+        pass
+
+
+# 测试密钥一律运行时拼接构造：足够长以覆盖打码分支，又不构成凭据样字面量
+_KEY_LONG = "sk-" + "a1b2c3" * 2
+_KEY_SHORT = "sk-" + "keep"
+
+
+def test_config_status_save_and_mask(tmp_path: Path, monkeypatch):
+    """UI 填 key：保存落 config.local.toml，状态只出打码 key（完整密钥永不出 API）。"""
+    monkeypatch.delenv("VAULT_DOCTOR_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    assert ui._config_status() == {"configured": False}
+
+    r = ui._config_save({"base_url": "https://api.deepseek.com", "model": "deepseek-chat",
+                         "api_key": _KEY_LONG})
+    assert r["saved"] and (tmp_path / "config.local.toml").is_file()
+
+    cfg = load_llm_config(None)
+    assert (cfg.base_url, cfg.model, cfg.api_key) == ("https://api.deepseek.com", "deepseek-chat", _KEY_LONG)
+
+    st = ui._config_status()
+    assert st["configured"] and "***" in st["api_key_masked"]
+    assert _KEY_LONG not in json.dumps(st, ensure_ascii=False)
+
+
+def test_config_save_blank_key_reuses_saved(tmp_path: Path, monkeypatch):
+    """key 留空保存 = 只改地址/模型，沿用已存密钥（换模型不用重贴 key）。"""
+    monkeypatch.delenv("VAULT_DOCTOR_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    ui._config_save({"base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": _KEY_SHORT})
+    ui._config_save({"base_url": "https://api.moonshot.cn/v1", "model": "kimi", "api_key": ""})
+    cfg = load_llm_config(None)
+    assert (cfg.base_url, cfg.model, cfg.api_key) == ("https://api.moonshot.cn/v1", "kimi", _KEY_SHORT)
+
+
+def test_config_save_rejects_private_base_url(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("VAULT_DOCTOR_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(LLMError):
+        ui._config_save({"base_url": "http://192.168.1.4/v4", "model": "m", "api_key": _KEY_SHORT})
+
+
+def test_config_test_with_fake_client(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(ui, "make_client", lambda cfg: _PingClient())
+    r = ui._config_test({"base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": _KEY_SHORT})
+    assert r["ok"] and r["reply"] == "OK"
