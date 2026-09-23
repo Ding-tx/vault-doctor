@@ -8,7 +8,9 @@
 
 **markdown 知识库的体检医生** —— 图谱语义层的 lint：找出断链、孤儿笔记、未被引用的附件，并告诉你哪些"断链"其实只是文件改了名。
 
-<!-- TODO(发布前): 首屏 GIF —— scan 输出 + near-miss 改名建议的真实终端录制 -->
+<p align="center">
+  <img src="docs/ui-scan.png" alt="vault-doctor Web UI：体检报告总览——按文件分组的问题表格、严重度筛选、错误计数飘红" width="880">
+</p>
 
 ```text
 $ vault-doctor scan .
@@ -53,6 +55,13 @@ vault-doctor mcp .                         # 只读 MCP server（stdio，供 Cla
 ```
 
 **Web UI**：`vault-doctor ui <vault>` 一条命令启动本地图形界面——扫描结果表格与筛选、点开违规看详情、一键“为什么？”调 LLM 解释、修复卡片逐文件勾选批准（diff 预览 + 快照 + 复扫验证）、快照列表一键回滚。零新增依赖，仅绑定 127.0.0.1。
+
+<p align="center">
+  <img src="docs/ui-fix.png" alt="修复卡片：为什么需要修改 → AI 的修改理由 → diff 预览，复扫验证通过后亮起绿徽标" width="880">
+</p>
+<p align="center">
+  <img src="docs/ui-snapshots.png" alt="修复结果与快照列表：清除 N 个文件的问题、无残留；每次修复都有快照，可一键回滚" width="880">
+</p>
 
 **AI 功能需要 API key**（`why` / `fix` / UI 的 AI 按钮；任何 OpenAI 兼容端点均可）。配置三选一：
 
@@ -155,7 +164,7 @@ pip install pytest
 pytest -v
 ```
 
-94 项测试覆盖：索引与增量、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码/过滤/截断与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断。
+113 项测试覆盖：索引与增量（含链接自愈/失效）、链接解析（含中文文件名/大小写/父目录/反斜杠）、near-miss 过滤链、四规则基准对账、CLI 退出码/过滤/截断与输出格式、插件注册、SARIF、补丁模型与冲突检测、闸门全键盘路径、快照回滚、修复闭环端到端、事件流与预算熔断、MCP 工具契约、Web UI 接口（扫描/规则/配置/目录浏览）。
 
 ## License
 
