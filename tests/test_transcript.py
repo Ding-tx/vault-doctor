@@ -1,4 +1,4 @@
-"""M2-D 事件流测试：append/read 往返、坏行跳过、会话 id。"""
+"""事件流测试：append/read 往返、坏行跳过、会话 id。"""
 from pathlib import Path
 
 from vault_doctor.kernel.transcript import Transcript, new_session_id

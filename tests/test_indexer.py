@@ -91,7 +91,7 @@ def test_update_and_removal(tmp_path: Path):
 
 
 def test_vaultdoctorignore(tmp_path: Path):
-    # 真实库校准（2026-09-21）：供应商代码等非笔记子树可用 .vaultdoctorignore 划出
+    # 真实库案例（2026-09-21）：供应商代码等非笔记子树可用 .vaultdoctorignore 划出
     _write(tmp_path / "keep.md", "# k\n")
     _write(tmp_path / "vendor" / "deep" / "x.md", "# x\n")
     (tmp_path / "vendor" / "logo.png").write_bytes(b"png")
@@ -128,7 +128,7 @@ def test_links_reparse_on_engine_version_change(tmp_path: Path):
 
 
 def test_link_heals_when_target_arrives_later(tmp_path: Path):
-    # 真实库教训（2026-09-23，校准 #7）：链接先落盘、目标文件后出现——
+    # 真实库案例（2026-09-23）：链接先落盘、目标文件后出现——
     # 未变文件的断链必须自动愈合，否则出现"断链与 near-miss 距离 0 自相矛盾"
     _write(tmp_path / "a.md", "看 [[b笔记]]\n")
     index_vault(tmp_path)

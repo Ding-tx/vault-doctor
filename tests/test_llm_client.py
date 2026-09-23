@@ -1,4 +1,4 @@
-"""M1-C LLM 客户端测试：URL 安全校验（约束：仅 http/https，拒绝内网/环回/保留地址）与 mock 往返。"""
+"""LLM 客户端测试：URL 安全校验（约束：仅 http/https，拒绝内网/环回/保留地址）与 mock 往返。"""
 import httpx
 import pytest
 

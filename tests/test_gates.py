@@ -1,4 +1,4 @@
-"""M2-B 闸门测试：y/n/a/q、assume_yes、前置条件失败、快照集成。"""
+"""闸门测试：y/n/a/q、assume_yes、前置条件失败、快照集成。"""
 import io
 from pathlib import Path
 

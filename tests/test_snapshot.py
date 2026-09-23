@@ -1,4 +1,4 @@
-"""M2-B 快照测试：创建、清单、回滚。"""
+"""快照测试：创建、清单、回滚。"""
 from pathlib import Path
 
 import pytest

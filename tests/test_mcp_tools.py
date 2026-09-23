@@ -1,4 +1,4 @@
-"""M3-A MCP 只读工具测试：纯引擎函数（不依赖 mcp SDK 安装）。"""
+"""MCP 只读工具测试：纯引擎函数（不依赖 mcp SDK 安装）。"""
 from pathlib import Path
 
 import pytest

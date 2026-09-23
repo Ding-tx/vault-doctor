@@ -1,4 +1,4 @@
-"""M2-C 起草器测试：locate_edit、草稿解析、起草与失败重试。"""
+"""起草器测试：locate_edit、草稿解析、起草与失败重试。"""
 from pathlib import Path
 
 import pytest

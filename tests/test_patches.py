@@ -1,4 +1,4 @@
-"""M2-A 文本补丁模型测试：应用、多补丁、冲突、前置条件、越界、dry-run。"""
+"""文本补丁模型测试：应用、多补丁、冲突、前置条件、越界、dry-run。"""
 from pathlib import Path
 
 import pytest

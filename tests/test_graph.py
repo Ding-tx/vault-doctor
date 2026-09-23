@@ -93,7 +93,7 @@ def test_links_refresh_on_update(tmp_path: Path):
 
 
 def test_md_link_to_plain_file_dir_and_backslash(tmp_path: Path):
-    # 真实库校准回归（2026-09-21）：指向 LICENSE/目录的链接应可解析；
+    # 回归（真实库案例，2026-09-21）：指向 LICENSE/目录的链接应可解析；
     # Typora 在 Windows 产出的 .\images\1.png 反斜杠路径应可解析
     _write(tmp_path / "doc.md", "# d\n[lic](LICENSE)\n[dir](bin/)\n[win](.\\images\\1.png)\n")
     (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")

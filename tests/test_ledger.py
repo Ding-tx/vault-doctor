@@ -1,4 +1,4 @@
-"""M2-D 账本测试：累计、事件留痕、预算熔断。"""
+"""账本测试：累计、事件留痕、预算熔断。"""
 from pathlib import Path
 
 import pytest

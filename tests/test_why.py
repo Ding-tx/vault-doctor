@@ -1,4 +1,4 @@
-"""M1-C why 命令测试：上下文组装、假客户端解释、缺配置退出码。"""
+"""why 命令测试：上下文组装、假客户端解释、缺配置退出码。"""
 from pathlib import Path
 
 from vault_doctor.cli.__main__ import main

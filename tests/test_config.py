@@ -1,4 +1,4 @@
-"""M1-C 配置加载测试：三来源优先级与错误指引。"""
+"""配置加载测试：三来源优先级与错误指引。"""
 from pathlib import Path
 
 import pytest
