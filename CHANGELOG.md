@@ -7,8 +7,8 @@
 
 ## v0.4.0 (2026-09-23)
 
-- **MCP server 模式**：`vault-doctor mcp <vault>` 以 stdio 启动只读 MCP server（Claude Code / Cursor / ZCode 等 agent 即插即用）。五个只读图谱工具：`scan_vault`（大库支持 `limit` 概览，`violation_count` 给全量数）、`outgoing_links` / `backlinks`、`near_miss_candidates`、`search_notes`（中文子串）。可选依赖 `pip install "vault-doctor[mcp]"`；兼容 MCP SDK 1.x/2.x；`--check` 一键自检；没有写工具，改文件只能走 `fix` 的人工闸门
-- **本地 Web UI**：扫描表格（按文件分组、严重度/规则/关键词筛选、医疗青品牌设计）、"为什么？"LLM 解释、修复卡片三段式（为什么改 / AI 理由 / diff + 预览即验证）、快照详情与一键回滚；零新增依赖，仅绑 127.0.0.1
+- **MCP server 模式**：`vault-doctor mcp <vault>` 以 stdio 启动只读 MCP server（Claude Code / Cursor 等 agent 都能用）。五个只读图谱工具：`scan_vault`（大库支持 `limit` 概览，`violation_count` 给全量数）、`outgoing_links` / `backlinks`、`near_miss_candidates`、`search_notes`（中文子串）。可选依赖 `pip install "vault-doctor[mcp]"`；兼容 MCP SDK 1.x/2.x；`--check` 自检；没有写工具，改文件只能走 `fix` 的人工闸门
+- **本地 Web UI**：扫描表格（按文件分组、严重度/规则/关键词筛选）、"为什么？"LLM 解释、修复卡片三段式（为什么改 / AI 理由 / diff + 预览即验证）、快照详情与回滚；零新增依赖，仅绑 127.0.0.1
 - **链接愈合与失效（引擎修复）**：目标文件晚于链接落盘时，断链会在下次扫描自动愈合（此前永不复检，出现"断链与 near-miss 距离 0 自相矛盾"）；反向，指向已删文件的链接即时断裂。LINKS_VERSION 2→3，存量索引首次扫描自愈。该盲区由 Claude Code 通过 MCP 体检真实库时发现
 - 全量文案白话化：规则中文名（断链/疑似改名/孤儿笔记/未引用附件）、违规消息与图例去术语化
 

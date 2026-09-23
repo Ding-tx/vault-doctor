@@ -49,7 +49,7 @@ vault-doctor rules                         # 列出内置 + 插件规则
 vault-doctor why . --index 1               # 用 LLM 把一条违规翻译成人话
 vault-doctor fix .                         # agent 修复：起草 → diff 预览 → 你确认 → 快照 → 应用 → 复扫验证
 vault-doctor snapshots .                   # 查看修复快照
-vault-doctor rollback <sid> .              # 一键回滚一次修复会话
+vault-doctor rollback <sid> .              # 回滚一次修复会话
 vault-doctor ui .                          # 本地图形界面（浏览器打开，仅本机可访问）
 vault-doctor mcp .                         # 只读 MCP server（stdio，供 Claude Code / Cursor 调用）
 ```
@@ -60,7 +60,7 @@ vault-doctor mcp .                         # 只读 MCP server（stdio，供 Cla
   <img src="docs/ui-fix.png" alt="修复卡片：为什么需要修改 → AI 的修改理由 → diff 预览，复扫验证通过后亮起绿徽标" width="880">
 </p>
 <p align="center">
-  <img src="docs/ui-snapshots.png" alt="修复结果与快照列表：清除 N 个文件的问题、无残留；每次修复都有快照，可一键回滚" width="880">
+  <img src="docs/ui-snapshots.png" alt="修复结果与快照列表：清除 N 个文件的问题、无残留；每次修复都有快照，可回滚" width="880">
 </p>
 
 **AI 功能需要 API key**（`why` / `fix` / Web UI 里的 AI 按钮，任何 OpenAI 兼容端点都行）。
@@ -146,7 +146,7 @@ my_rule = "my_package.rules:MY_RULE"   # 指向 Rule 实例或 Rule 序列
 
 | | vault-doctor | lychee | markdownlint | Obsidian 插件 |
 |---|---|---|---|---|
-| 外部 URL 检查 | ✗（M1 集成 lychee） | ✓ | ✗ | 部分 |
+| 外部 URL 检查 | ✗（计划中，与 lychee 配合） | ✓ | ✗ | 部分 |
 | 格式修复 | ✗（互补，交给它） | ✗ | ✓ `--fix` | ✓ |
 | wikilink 图谱解析 | ✓ | ✗ | ✗ | ✓（锁编辑器） |
 | 孤儿 / 未引用附件 | ✓ | ✗ | ✗ | 部分 |
