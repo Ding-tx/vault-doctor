@@ -125,3 +125,42 @@ def test_links_reparse_on_engine_version_change(tmp_path: Path):
         "SELECT target_resolved FROM links WHERE source = 'a.md'"
     ).fetchone()[0]
     assert resolved == "b.md"
+
+
+def test_link_heals_when_target_arrives_later(tmp_path: Path):
+    # 真实库教训（2026-09-23，校准 #7）：链接先落盘、目标文件后出现——
+    # 未变文件的断链必须自动愈合，否则出现"断链与 near-miss 距离 0 自相矛盾"
+    _write(tmp_path / "a.md", "看 [[b笔记]]\n")
+    index_vault(tmp_path)
+    conn = connect(default_db_path(tmp_path))
+    assert conn.execute(
+        "SELECT COUNT(*) FROM links WHERE target_resolved IS NULL"
+    ).fetchone()[0] == 1
+    conn.close()
+
+    (tmp_path / "b笔记.md").write_text("# b\n", encoding="utf-8")  # 目标后到
+    index_vault(tmp_path)  # a.md 未变，但已知路径集合变了 → 定向复检
+
+    conn = connect(default_db_path(tmp_path))
+    rows = conn.execute(
+        "SELECT target_resolved FROM links WHERE source = 'a.md'"
+    ).fetchall()
+    conn.close()
+    assert rows == [("b笔记.md",)]
+
+
+def test_link_breaks_when_target_removed(tmp_path: Path):
+    # 反向盲区：目标文件被删后，指向它的链接必须翻转为断链（而不是保留过期解析结果）
+    _write(tmp_path / "a.md", "看 [[b笔记]]\n")
+    _write(tmp_path / "b笔记.md", "# b\n")
+    index_vault(tmp_path)
+
+    (tmp_path / "b笔记.md").unlink()
+    index_vault(tmp_path)
+
+    conn = connect(default_db_path(tmp_path))
+    rows = conn.execute(
+        "SELECT target_resolved FROM links WHERE source = 'a.md'"
+    ).fetchall()
+    conn.close()
+    assert rows == [(None,)]

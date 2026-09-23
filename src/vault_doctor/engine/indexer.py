@@ -22,12 +22,14 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from vault_doctor.engine.graph import LinkResolver, extract_links
+from vault_doctor.engine.graph import LinkResolver, RawLink, extract_links
 
 SCHEMA_VERSION = "3"
 
-# 链接解析逻辑版本：变化时即使文件未变也全量重解析（增量索引的引擎版本盲区）
-LINKS_VERSION = "2"
+# 链接解析逻辑版本：变化时即使文件未变也全量重解析（增量索引的引擎版本盲区）。
+# v3（2026-09-23）：新增"已知路径集合变化 → 未变文件链接定向复检"（见下方愈合逻辑），
+# 存量索引靠本次版本升级一次性全量重解析自愈。
+LINKS_VERSION = "3"
 
 SKIP_DIRS = {"node_modules", "__pycache__", "venv", "dist", "build"}
 
@@ -151,6 +153,7 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
             row[0]: (row[1], row[2])
             for row in conn.execute("SELECT path, mtime, size FROM others")
         }
+        existing_dirs = {row[0] for row in conn.execute("SELECT path FROM dirs")}
         seen_notes: set[str] = set()
         seen_assets: set[str] = set()
         seen_others: set[str] = set()
@@ -265,6 +268,31 @@ def index_vault(vault: Path, db_path: Path | None = None) -> IndexStats:
                     for link in extract_links(text)
                 ],
             )
+
+        # 链接愈合与失效（2026-09-23 真实库教训，校准记录 #7）：
+        # 增量索引只复查"自己变过的文件"——若目标文件在链接落盘之后才出现（或被删除），
+        # 未变文件的链接解析结果就永久停留在过期状态：断链不愈合、删链不断裂。
+        # 已知路径集合有变时，对 links 表做一次定向复检，只翻转发生变化的行。
+        known_before = (
+            set(existing_notes) | set(existing_assets) | set(existing_others) | existing_dirs
+        )
+        known_after = seen_notes | seen_assets | seen_others | set(all_dirs)
+        if known_before != known_after:
+            for source, target_raw, kind in conn.execute(
+                "SELECT DISTINCT source, target_raw, kind FROM links "
+                "WHERE target_resolved IS NULL"
+            ).fetchall():
+                healed = resolver.resolve(source, RawLink(target_raw, 0, kind))
+                if healed:
+                    conn.execute(
+                        "UPDATE links SET target_resolved = ? WHERE source = ? AND target_raw = ?",
+                        (healed, source, target_raw),
+                    )
+            for gone in known_before - known_after:
+                conn.execute(
+                    "UPDATE links SET target_resolved = NULL WHERE target_resolved = ?",
+                    (gone,),
+                )
 
         conn.execute(
             "INSERT INTO meta(key, value) VALUES('schema_version', ?) "
