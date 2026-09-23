@@ -175,3 +175,16 @@ def test_config_test_with_fake_client(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(ui, "make_client", lambda cfg: _PingClient())
     r = ui._config_test({"base_url": "https://api.deepseek.com", "model": "deepseek-chat", "api_key": _KEY_SHORT})
     assert r["ok"] and r["reply"] == "OK"
+
+
+def test_browse_lists_dirs_and_rejects_non_dir(tmp_path: Path):
+    """文件夹选择器服务端：列出子目录（过滤隐藏/缓存），拒绝非目录。"""
+    build_vault(tmp_path)
+    r = ui._browse(str(tmp_path))
+    assert r["path"] == str(tmp_path)
+    names = {Path(d).name for d in r["dirs"]}
+    assert "计算机" in names  # fixtures 子目录可见
+    assert ".obsidian" not in names  # 隐藏目录不进选择器
+    assert r["parent"] is not None
+    with pytest.raises(ui.ApiError):
+        ui._browse(str(tmp_path / "计算机" / "学习计划.md"))

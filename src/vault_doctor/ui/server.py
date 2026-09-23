@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 import threading
 import time
 import uuid
@@ -24,7 +25,7 @@ from vault_doctor.cli.why import SYSTEM_PROMPT as WHY_PROMPT
 from vault_doctor.cli.why import build_user_prompt
 from vault_doctor.config import ConfigError, LLMConfig, load_llm_config, write_llm_config
 from vault_doctor.engine.graph import LinkResolver, extract_links
-from vault_doctor.engine.indexer import connect, default_db_path, index_vault
+from vault_doctor.engine.indexer import SKIP_DIRS, connect, default_db_path, index_vault
 from vault_doctor.engine.patches import apply_patches, apply_to_text
 from vault_doctor.engine.rules import REGISTRY, run_rules
 from vault_doctor.engine.rules.base import RuleContext
@@ -120,6 +121,33 @@ def _scan(vault: Path) -> dict:
         "assets": assets,
         "elapsed": round(stats.elapsed, 2),
         "violations": [v.model_dump() for v in violations],
+    }
+
+
+def _browse(raw: str | None) -> dict:
+    """文件夹选择器的服务端：列出某目录下的子目录（只给目录名，不读文件内容）。
+
+    path 为空 → 列磁盘根（Windows 用 os.listdrives，POSIX 回退 /）；仅本机
+    127.0.0.1 可达，等价于用户自己在资源管理器里点开看目录树。
+    """
+    if not raw:
+        roots = list(os.listdrives()) if hasattr(os, "listdrives") else ["/"]
+        return {"path": "", "parent": None, "dirs": roots}
+    root = Path(raw)
+    if not root.is_dir():
+        raise ApiError(f"不是有效目录：{root}")
+    dirs: list[str] = []
+    try:
+        for p in sorted(root.iterdir(), key=lambda x: x.name.lower()):
+            if p.is_dir() and not p.name.startswith(".") and p.name not in SKIP_DIRS:
+                dirs.append(str(p))
+    except PermissionError as exc:
+        raise ApiError(f"无权访问该目录：{exc}")
+    parent = root.parent
+    return {
+        "path": str(root),
+        "parent": str(parent) if str(parent) != str(root) else None,
+        "dirs": dirs[:500],
     }
 
 
@@ -369,6 +397,10 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/config":
             self._guard(_config_status)
             return
+        if parsed.path == "/api/browse":
+            qs = parse_qs(parsed.query)
+            self._guard(lambda: _browse(qs.get("path", [None])[0]))
+            return
         if parsed.path == "/api/snapshots":
             qs = parse_qs(parsed.query)
             self._guard(lambda: {"snapshots": list(reversed(list_snapshots_detail(self._vault(qs.get("vault", [None])[0]))))})
@@ -417,7 +449,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(vault: Path, port: int = 8765, open_browser: bool = True) -> None:
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    httpd.default_vault = str(vault)  # type: ignore[attr-defined]
+    httpd.default_vault = str(Path(vault).resolve())  # type: ignore[attr-defined]
     url = f"http://127.0.0.1:{httpd.server_address[1]}/"
     print(f"vault-doctor {__version__} UI → {url}（Ctrl+C 退出）")
     if open_browser:

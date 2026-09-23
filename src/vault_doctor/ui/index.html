@@ -152,6 +152,20 @@
   .cfggrid select { min-width:150px; }
   .cfggrid input { min-width:220px; padding:6px 11px; font-size:13px; }
 
+  /* ---- 文件夹选择器 ---- */
+  #pickOverlay { position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex;
+                 align-items:center; justify-content:center; z-index:60; }
+  .pickdlg { background:#fff; border-radius:14px; width:min(560px, 92vw); max-height:76vh;
+             display:flex; flex-direction:column; box-shadow:var(--shadow-lg); overflow:hidden; }
+  .pickhead { padding:14px 18px 8px; border-bottom:1px solid var(--line-soft); }
+  .pickhead b { font-size:14px; }
+  .pickhead .cur { font:12px ui-monospace,Consolas,monospace; color:var(--muted); margin-top:2px; word-break:break-all; }
+  .picklist { overflow:auto; padding:6px 10px; flex:1; }
+  .pickrow { display:flex; gap:8px; align-items:center; padding:7px 10px; border-radius:8px;
+             cursor:pointer; font-size:13px; }
+  .pickrow:hover { background:var(--accent-soft); }
+  .pickfoot { padding:10px 14px; display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--line-soft); }
+
   /* ---- 信任条 ---- */
   .trust { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding:14px 0 44px; }
   .trust .chip { display:inline-flex; gap:6px; align-items:center; background:#fff; border:1px solid var(--line);
@@ -173,7 +187,8 @@
     </div>
   </div>
   <div class="searchbar">
-    <input id="vault" type="text" placeholder="知识库路径，如 D:\notes" value="{{VAULT}}">
+    <input id="vault" type="text" placeholder="知识库路径（可粘贴）" value="{{VAULT}}">
+    <button onclick="pickOpen()" title="浏览选择文件夹">📁 浏览</button>
     <button class="primary" onclick="doScan()">开始体检</button>
   </div>
 </header>
@@ -216,7 +231,7 @@
     <table id="tbl"></table>
     <div class="empty" id="empty" style="display:none">
       <div class="icon">🩺</div>
-      <div>输入知识库路径，点“开始体检”</div>
+      <div>用 📁 选择（或粘贴）知识库文件夹，点“开始体检”</div>
     </div>
   </div>
   <div class="card" id="detail" style="display:none"></div>
@@ -249,12 +264,26 @@
   </div>
 
   <div class="card">
-    <h3><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg> 快照与回滚</h3>
+    <h3>🗂 快照与回滚</h3>
     <div class="hint">每次应用修改前自动保存快照（原文件备份）。回滚 = 把文件恢复到该快照时刻的内容。</div>
     <button onclick="loadSnaps()">查看快照</button>
     <div id="snapArea"></div>
   </div>
 </main>
+<div id="pickOverlay" style="display:none">
+  <div class="pickdlg">
+    <div class="pickhead">
+      <b>📁 选择知识库文件夹</b>
+      <div class="cur" id="pickCur"></div>
+    </div>
+    <div class="picklist" id="pickList"></div>
+    <div class="pickfoot">
+      <button id="pickUpBtn" onclick="pickUp()">⬆ 上级</button>
+      <button onclick="pickClose()">取消</button>
+      <button class="primary" onclick="pickConfirm()">选择此文件夹</button>
+    </div>
+  </div>
+</div>
 <div class="trust">
   <span class="chip">🔒 扫描只读，不改文件</span>
   <span class="chip">🛡 修复必须经你批准</span>
@@ -424,7 +453,7 @@ function render() {
 
   if (!SCAN || !SCAN.violations.length) {
     empty.style.display = "";
-    empty.lastElementChild.textContent = SCAN ? "🎉 体检通过，没有发现问题" : "输入知识库路径，点“开始体检”";
+    empty.lastElementChild.textContent = SCAN ? "🎉 体检通过，没有发现问题" : "用 📁 选择（或粘贴）知识库文件夹，点“开始体检”";
     setStat(SCAN ? `${SCAN.notes} 篇笔记 · ${SCAN.elapsed}s` : "");
     return;
   }
@@ -654,10 +683,51 @@ async function loadSnaps() {
   } catch (e) { area.textContent = "❌ " + e.message; }
 }
 
-// 先取规则目录与配置状态再首扫：表格/筛选器/图例一次到位，不闪英文 id
+/* ---- 文件夹选择器 ---- */
+let pickCur = "";
+let pickParent = null;
+
+async function pickNav(p) {
+  try {
+    const r = await api("/api/browse" + (p ? "?path=" + encodeURIComponent(p) : ""));
+    pickCur = r.path;
+    pickParent = r.parent;
+    $("pickCur").textContent = r.path || "（先选一个磁盘）";
+    $("pickUpBtn").style.display = r.parent ? "" : "none";
+    const list = $("pickList");
+    list.innerHTML = "";
+    if (!r.dirs.length) {
+      const none = document.createElement("div");
+      none.className = "hint"; none.style.padding = "14px";
+      none.textContent = "（此目录下没有可见子文件夹）";
+      list.appendChild(none);
+    }
+    for (const d of r.dirs) {
+      const row = document.createElement("div");
+      row.className = "pickrow";
+      const icon = document.createElement("span"); icon.textContent = "📂";
+      const name = document.createElement("span");
+      name.textContent = d.split(/[\\/]/).filter(Boolean).pop() || d;  // 盘符如 C:\ 原样显示
+      row.append(icon, name);
+      row.onclick = () => pickNav(d);
+      list.appendChild(row);
+    }
+  } catch (e) { $("pickCur").textContent = "❌ " + e.message; }
+}
+
+function pickOpen() { $("pickOverlay").style.display = "flex"; pickNav(""); }
+function pickClose() { $("pickOverlay").style.display = "none"; }
+function pickUp() { if (pickParent) pickNav(pickParent); }
+function pickConfirm() {
+  if (!pickCur) return;
+  $("vault").value = pickCur;
+  pickClose();
+  doScan();  // 用户明确选了文件夹，直接开始体检
+}
+
+// 页面打开不自动体检：选好文件夹（或粘贴路径）后由用户点"开始体检"
 loadRules();
 loadCfg();
-doScan();
 </script>
 </body>
 </html>
